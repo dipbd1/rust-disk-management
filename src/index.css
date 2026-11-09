@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #0b0f17;
+  color: #e2e8f0;
+  overflow: hidden;
+}
+
+body {
+  font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}

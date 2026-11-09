@@ -1,0 +1,36 @@
+# Liquid Storage Manager
+
+Before writing code, read and follow [AGENT.md](AGENT.md), [docs/SRS.md](docs/SRS.md), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Those three files are the coding, scaling, and structure contract. This file repeats them so either entrypoint stays aligned. If a change moves a boundary, update the docs in the same change. Do not leave the implementation smarter than the docs, or the docs ahead of the code.
+
+If this file and those docs ever disagree, follow the docs and update this file.
+
+## Forbidden drift
+
+- Sending the full recursive tree to the webview
+- Rendering more than `GRAPH_CHILD_CAP` (60) child spheres
+- Calling `@tauri-apps/api` outside `src/services/tauriBridge.ts`
+- `.unwrap()` / `.expect()` in commands or services (`Builder::run` in `lib.rs` is the one allowed startup `.expect()`)
+- `setState` inside `useFrame`
+- `std::fs::remove_file` / `remove_dir_all` outside `permanent_delete`
+- A second cache that mixes filtered search results into the tree pages
+
+## Architecture
+
+- `src-tauri/src/commands/` contains only thin Tauri command wrappers. Scanning, size aggregation, and OS operations belong in `src-tauri/src/services/`.
+- `src/components/explorer/` is 2D UI only. `src/components/visualizer/` is 3D only.
+- Frontend components never call `@tauri-apps/api`. IPC goes through `src/services/tauriBridge.ts`.
+- Zustand (`src/store/useFileStore.ts`) is the only shared frontend state.
+- Rust `ScanIndex` owns the full tree. JavaScript holds the open branch, one folder page, and the current graph view.
+- Do not return the recursive tree. Progress every 100ms carries the root plus at most 200 direct children. `get_children` pages (default 400, clamp 1000). `get_graph_view` returns the focus, at most 60 children, and one aggregate.
+- Normalize Windows paths in `services/paths.rs` before storing or sending them. One function. No ad-hoc slash logic.
+- `jwalk` uses `skip_hidden(false)` and `follow_links(false)`. Do not follow symlinks or reparse points. Do not descend `System Volume Information` or `$Recycle.Bin`. Count other access errors and continue.
+- Heavy work uses `tauri::async_runtime::spawn_blocking`. Stream `ScanProgress` on `tauri::ipc::Channel`. The scanner takes a progress callback so tests do not need a Tauri runtime.
+- Cancel with `Arc<AtomicBool>` (relaxed). A generation counter stops an older scan from overwriting a newer index. On cancel, keep the partial index and return `Ok` with `cancelled: true`.
+- `trash_path` uses the `trash` crate. Never delete a drive root (`C:\`).
+- `notify` watches the focused folder non-recursively, debounces, and emits `fs-stale`. It does not start a scan.
+- `AppError` (`thiserror`) serializes as a string. Commands return `Result<T, AppError>`.
+- Rust structs use `#[serde(rename_all = "camelCase")]`. TypeScript mirrors live in `src/types/filesystem.ts`. No `any`.
+- Keep files under about 250 lines. New constants go in `src-tauri/src/limits.rs` and `src/lib/limits.ts`, then into `docs/ARCHITECTURE.md`.
+- New IPC is unfinished until the command, the bridge function, and the TypeScript type all exist.
+- Stay on the React version already in `package.json`. Virtualize lists. Keep tree pages and the filtered folder list in separate caches.
+- In `useFrame`, write refs and uniforms. Read the store with `useFileStore.getState()`. Do not uncapped the 60-sphere graph. No bloom pass unless `docs/ARCHITECTURE.md` records a measured FPS note.
