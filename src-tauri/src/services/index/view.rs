@@ -118,6 +118,17 @@ impl ScanIndex {
         let parent_id = node
             .parent
             .map(|pid| self.nodes[pid.0 as usize].path.clone());
+        let (folder_count, file_count) = if node.kind == NodeKind::Folder {
+            node.children.iter().fold((0u64, 0u64), |(fc, flc), &cid| {
+                if self.nodes[cid.0 as usize].kind == NodeKind::Folder {
+                    (fc + 1, flc)
+                } else {
+                    (fc, flc + 1)
+                }
+            })
+        } else {
+            (0, 0)
+        };
         FileNode {
             id: node.path.clone(),
             name: node.name.clone(),
@@ -127,6 +138,8 @@ impl ScanIndex {
             category: node.category,
             size_bytes: node.size_bytes,
             child_count: node.child_count,
+            folder_count,
+            file_count,
             percent_of_parent: percent(node.size_bytes, parent_size),
         }
     }
@@ -143,6 +156,8 @@ impl ScanIndex {
             category: FileCategory::Other,
             size_bytes,
             child_count: count,
+            folder_count: 0,
+            file_count: count,
             percent_of_parent: percent(size_bytes, Some(parent.size_bytes)),
         }
     }

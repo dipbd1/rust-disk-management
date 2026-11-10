@@ -24,7 +24,7 @@ export function ViewerInspector() {
 
   const hoveredNodeId = useVisualizerStore((state) => state.hoveredNodeId);
   const [copied, setCopied] = useState(false);
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
 
   // Determine active inspect target: hovered -> selected -> focus hub
   const hub = graphView?.focus ?? (focusedNodeId ? nodes[focusedNodeId] : undefined);

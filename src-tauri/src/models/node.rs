@@ -29,6 +29,10 @@ pub struct FileNode {
     pub category: FileCategory,
     pub size_bytes: u64,
     pub child_count: u64,
+    #[serde(default)]
+    pub folder_count: u64,
+    #[serde(default)]
+    pub file_count: u64,
     pub percent_of_parent: f32,
 }
 

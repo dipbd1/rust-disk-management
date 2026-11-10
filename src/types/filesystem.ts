@@ -20,6 +20,8 @@ export interface FileNode {
   category: FileCategory;
   sizeBytes: number;
   childCount: number;
+  folderCount?: number;
+  fileCount?: number;
   percentOfParent: number;
 }
 
