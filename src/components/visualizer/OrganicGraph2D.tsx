@@ -54,6 +54,64 @@ interface TransitionState {
   panEnd: { x: number; y: number };
 }
 
+interface BallAnimState {
+  currentRadius: number;
+  targetRadius: number;
+  currentFill: number;
+  targetFill: number;
+  pulseIntensity: number;
+  lastSize: number;
+  isGrowing: boolean;
+}
+
+function updateBallAnim(
+  map: Map<string, BallAnimState>,
+  key: string,
+  targetRadius: number,
+  targetFill: number,
+  sizeBytes: number,
+  isScanning: boolean
+): { radius: number; fill: number; pulse: number; isFilling: boolean } {
+  let state = map.get(key);
+  if (!state) {
+    state = {
+      currentRadius: Math.max(3, targetRadius * 0.15),
+      targetRadius,
+      currentFill: 0.04,
+      targetFill,
+      pulseIntensity: 0.9,
+      lastSize: sizeBytes,
+      isGrowing: true,
+    };
+    map.set(key, state);
+  } else {
+    // If size grew noticeably (scanning discovering items)
+    if (sizeBytes > state.lastSize * 1.05) {
+      state.pulseIntensity = Math.min(1.0, state.pulseIntensity + 0.7);
+      state.lastSize = sizeBytes;
+    }
+    state.targetRadius = targetRadius;
+    state.targetFill = targetFill;
+  }
+
+  // Smooth spring easing for radius & fill
+  const rDiff = state.targetRadius - state.currentRadius;
+  state.currentRadius += rDiff * 0.09;
+
+  const fDiff = state.targetFill - state.currentFill;
+  state.currentFill += fDiff * 0.06;
+
+  state.pulseIntensity *= 0.94;
+  state.isGrowing = Math.abs(rDiff) > 1.0 || Math.abs(fDiff) > 0.03 || isScanning;
+
+  return {
+    radius: Math.max(3, state.currentRadius),
+    fill: Math.min(0.95, Math.max(0.04, state.currentFill)),
+    pulse: state.pulseIntensity,
+    isFilling: state.isGrowing,
+  };
+}
+
 // Easing functions for organic fluid motion
 function easeInOutCubic(x: number): number {
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
@@ -81,6 +139,12 @@ export function OrganicGraph2D() {
   const selectNode = useFileStore((state) => state.selectNode);
   const focusNode = useFileStore((state) => state.focusNode);
   const childPages = useFileStore((state) => state.childPages);
+  const scanStatus = useFileStore((state) => state.scanStatus);
+  const progress = useFileStore((state) => state.progress);
+  const scanStatusRef = useRef(scanStatus);
+  scanStatusRef.current = scanStatus;
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
 
   const autoOrbit = useVisualizerStore((state) => state.autoOrbit);
   const categoryFilter = useVisualizerStore((state) => state.categoryFilter);
@@ -97,6 +161,9 @@ export function OrganicGraph2D() {
 
   // Orbit angle for continuous rotation
   const orbitAngleRef = useRef(0);
+
+  // Dynamic animated states for balls (radius growth & liquid rising)
+  const ballAnimMapRef = useRef<Map<string, BallAnimState>>(new Map());
 
   // Cache for level-2 children (satellites)
   const [subChildrenMap, setSubChildrenMap] = useState<Record<string, FileNode[]>>({});
@@ -160,14 +227,15 @@ export function OrganicGraph2D() {
     }
   }, [graphView, childPages, subChildrenMap]);
 
-  // Recenter camera
+  // Recenter camera and auto-fit scene boundary
   const resetView = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const width = canvas.clientWidth || 800;
     const height = canvas.clientHeight || 700;
     setPan({ x: width / 2, y: height / 2 });
-    setZoom(1);
+    const fitZoom = Math.min(1.0, Math.max(0.65, (Math.min(width, height) - 50) / 1060));
+    setZoom(fitZoom);
   }, []);
 
   useEffect(() => {
@@ -283,28 +351,52 @@ export function OrganicGraph2D() {
       ctx.translate(panRef.current.x, panRef.current.y);
       ctx.scale(zoomRef.current, zoomRef.current);
 
-      // 1. Draw Cosmic Floor Grid
-      drawGrid(ctx);
+      const isScanning = scanStatusRef.current === "scanning";
+      const scannedCount = progressRef.current?.scannedCount || 0;
+      const currentScanPath = progressRef.current?.currentPath || "";
+      const boundaryRadius = 490;
+
+      // 1. Draw Sci-Fi Scene Boundary, Arena Floor, Radar Sweeps & Perimeter
+      drawSceneBoundary(
+        ctx,
+        boundaryRadius,
+        time,
+        isScanning,
+        scannedCount,
+        currentScanPath,
+        graphView?.focus.name || activeDrive || "C:"
+      );
 
       // 2. Cosmic Stardust Particles
       drawCosmicDust(ctx, particlesRef.current, time);
 
       // Prepare target nodes data
       if (graphView?.focus) {
+        const animMap = ballAnimMapRef.current;
         const drive = drives.find((item) => item.mount === activeDrive);
         const used = diskUsedRatio(drive);
         const isRoot = isDriveRoot(graphView.focus.path);
 
         const hubFill = isRoot && used > 0 ? used : 0.79;
-        const targetHubRadius = 100;
+        const targetHubRadius = 92;
         const hubTheme = getNodeVisualTheme(graphView.focus, 0, true);
+
+        // Update animated growth state for Hub (spring radius & liquid filling)
+        const hubAnim = updateBallAnim(
+          animMap,
+          `hub:${graphView.focus.id}`,
+          targetHubRadius + (isScanning ? Math.sin(time * 5) * 2.5 : 0),
+          hubFill,
+          graphView.focus.sizeBytes,
+          isScanning
+        );
 
         const hubNode: RenderNode = {
           node: graphView.focus,
           x: 0,
           y: 0,
-          radius: targetHubRadius,
-          fill: Math.min(0.92, Math.max(0.1, hubFill)),
+          radius: hubAnim.radius,
+          fill: hubAnim.fill,
           theme: hubTheme,
           isHub: true,
           satellites: [],
@@ -320,7 +412,7 @@ export function OrganicGraph2D() {
         const childCount = rawChildren.length;
 
         // Orbital radius
-        const orbitRadius = childCount > 8 ? 330 : 290;
+        const orbitRadius = childCount > 8 ? 295 : 255;
 
         // Concentric Orbital Track Rings
         drawOrbitalTracks(ctx, orbitRadius);
@@ -330,13 +422,23 @@ export function OrganicGraph2D() {
           const currentAngle = baseAngle + orbitAngleRef.current;
 
           const sizeRatio = Math.max(0, child.sizeBytes) / maxChildSize;
-          const radius = 34 + 32 * Math.pow(sizeRatio, 0.42);
+          const targetChildRadius = 32 + 28 * Math.pow(sizeRatio, 0.42);
 
           const x = Math.cos(currentAngle) * orbitRadius;
           const y = Math.sin(currentAngle) * orbitRadius;
 
-          const fill = 0.18 + 0.62 * Math.pow(sizeRatio, 0.5);
+          const targetChildFill = 0.18 + 0.62 * Math.pow(sizeRatio, 0.5);
           const theme = getNodeVisualTheme(child, idx);
+
+          // Update animated state for child ball
+          const childAnim = updateBallAnim(
+            animMap,
+            child.path,
+            targetChildRadius,
+            targetChildFill,
+            child.sizeBytes,
+            isScanning
+          );
 
           // Level 2 Satellites for this child
           const subNodes = subChildrenMap[child.path] || [];
@@ -347,19 +449,29 @@ export function OrganicGraph2D() {
             const span = Math.max(subNodes.length - 1, 1);
             const subAngleOffset = (sIdx / span - 0.5) * satSpread;
             const satAngle = currentAngle + subAngleOffset;
-            const satDist = radius + 32 + (sIdx % 2 === 0 ? 12 : 24);
+            const satDist = childAnim.radius + 28 + (sIdx % 2 === 0 ? 10 : 20);
 
             const satRatio = Math.max(0, sub.sizeBytes) / maxSubSize;
-            const satRadius = 13 + 10 * Math.pow(satRatio, 0.5);
-            const satFill = 0.2 + 0.65 * satRatio;
+            const targetSatRadius = 12 + 9 * Math.pow(satRatio, 0.5);
+            const targetSatFill = 0.2 + 0.65 * satRatio;
+
+            // Update animated state for satellite ball
+            const satAnim = updateBallAnim(
+              animMap,
+              sub.path,
+              targetSatRadius,
+              targetSatFill,
+              sub.sizeBytes,
+              isScanning
+            );
 
             return {
               node: sub,
               parentPath: child.path,
               x: x + Math.cos(satAngle) * satDist,
               y: y + Math.sin(satAngle) * satDist,
-              radius: satRadius,
-              fill: satFill,
+              radius: satAnim.radius,
+              fill: satAnim.fill,
               theme: getNodeVisualTheme(sub, sIdx),
             };
           });
@@ -368,8 +480,8 @@ export function OrganicGraph2D() {
             node: child,
             x,
             y,
-            radius,
-            fill,
+            radius: childAnim.radius,
+            fill: childAnim.fill,
             theme,
             isHub: false,
             satellites,
@@ -378,6 +490,21 @@ export function OrganicGraph2D() {
             targetY: y,
           };
         });
+
+        // Periodic cleanup of ballAnimMapRef to prevent unbounded growth
+        if (animMap.size > 260) {
+          const activeKeys = new Set<string>();
+          activeKeys.add(`hub:${graphView.focus.id}`);
+          for (const c of childNodes) {
+            activeKeys.add(c.node.path);
+            for (const s of c.satellites) {
+              activeKeys.add(s.node.path);
+            }
+          }
+          for (const k of animMap.keys()) {
+            if (!activeKeys.has(k)) animMap.delete(k);
+          }
+        }
 
         renderNodesRef.current = childNodes;
 
@@ -468,6 +595,9 @@ export function OrganicGraph2D() {
             sizeFormatted: `(${formatBytes(trans.toNode.sizeBytes)})`,
             percentFormatted: `${Math.round(movingHubFill * 100)}%`,
             icon: "📁",
+            growthPulse: 0.65,
+            isFilling: true,
+            isScanning,
           });
 
           // Phase 3: The New Children Pop In and Establish Connector Lines with Center Ball
@@ -502,10 +632,12 @@ export function OrganicGraph2D() {
                 time,
                 curChildOpacity,
                 lineProgress < 0.98, // Show energy spark at tip while establishing connection
+                isScanning,
               );
 
               // Draw pop-in child ball
               if (curChildRadius >= 3) {
+                const animState = animMap.get(child.node.path);
                 drawLiquidBall(ctx, {
                   x: curChildX,
                   y: curChildY,
@@ -521,6 +653,9 @@ export function OrganicGraph2D() {
                   percentFormatted: `~${Math.round(child.fill * 100)}%`,
                   icon: child.theme.icon,
                   isHub: false,
+                  growthPulse: animState?.pulseIntensity,
+                  isFilling: animState?.isGrowing,
+                  isScanning,
                 });
               }
 
@@ -534,6 +669,7 @@ export function OrganicGraph2D() {
 
                   if (satRadius >= 3 && satP > 0.05) {
                     drawSatelliteConnector(ctx, curChildX, curChildY, satCurX, satCurY, sat.theme.primary, satP * 0.7);
+                    const satAnimState = animMap.get(sat.node.path);
                     drawLiquidBall(ctx, {
                       x: satCurX,
                       y: satCurY,
@@ -546,6 +682,9 @@ export function OrganicGraph2D() {
                       opacity: satP,
                       isSatellite: true,
                       sizeFormatted: formatBytes(sat.node.sizeBytes),
+                      growthPulse: satAnimState?.pulseIntensity,
+                      isFilling: satAnimState?.isGrowing,
+                      isScanning,
                     });
                   }
                 }
@@ -572,7 +711,7 @@ export function OrganicGraph2D() {
               categoryFilter === "all" ||
               child.node.category === categoryFilter ||
               (categoryFilter === "heavy" && child.node.sizeBytes >= 5 * 1024 * 1024 * 1024);
-            drawConnectorLine(ctx, 0, 0, child.x, child.y, child.theme.primary, time, isFilterMatch ? 1.0 : 0.2);
+            drawConnectorLine(ctx, 0, 0, child.x, child.y, child.theme.primary, time, isFilterMatch ? 1.0 : 0.2, false, isScanning);
 
             // 4. Draw Satellite Connector Lines: Child -> Satellites
             for (const sat of child.satellites) {
@@ -593,6 +732,7 @@ export function OrganicGraph2D() {
                 sat.node.category === categoryFilter ||
                 (categoryFilter === "heavy" && sat.node.sizeBytes >= 5 * 1024 * 1024 * 1024);
 
+              const satAnimState = animMap.get(sat.node.path);
               drawLiquidBall(ctx, {
                 x: sat.x,
                 y: sat.y,
@@ -605,6 +745,9 @@ export function OrganicGraph2D() {
                 opacity: isFilterMatch ? 1.0 : 0.22,
                 isSatellite: true,
                 sizeFormatted: formatBytes(sat.node.sizeBytes),
+                growthPulse: satAnimState?.pulseIntensity,
+                isFilling: satAnimState?.isGrowing,
+                isScanning,
               });
             }
           }
@@ -622,6 +765,7 @@ export function OrganicGraph2D() {
               child.node.category === categoryFilter ||
               (categoryFilter === "heavy" && child.node.sizeBytes >= 5 * 1024 * 1024 * 1024);
 
+            const childAnimState = animMap.get(child.node.path);
             drawLiquidBall(ctx, {
               x: child.x,
               y: child.y,
@@ -637,6 +781,9 @@ export function OrganicGraph2D() {
               percentFormatted: `~${Math.round(child.fill * 100)}%`,
               icon: child.theme.icon,
               isHub: false,
+              growthPulse: childAnimState?.pulseIntensity,
+              isFilling: childAnimState?.isGrowing,
+              isScanning,
             });
           }
 
@@ -659,6 +806,9 @@ export function OrganicGraph2D() {
             percentFormatted: `${Math.round(hubNode.fill * 100)}%`,
             isHub: true,
             icon: "📁",
+            growthPulse: hubAnim.pulse,
+            isFilling: hubAnim.isFilling,
+            isScanning,
           });
         }
       }
@@ -909,42 +1059,270 @@ export function OrganicGraph2D() {
 }
 
 // -------------------------------------------------------------
-// Canvas Helper Functions: Grid, Tracks, Dust, Lines, Balls
+// Canvas Helper Functions: Boundary, Tracks, Dust, Lines, Balls
 // -------------------------------------------------------------
 
-function drawGrid(ctx: CanvasRenderingContext2D) {
-  const gridSize = 70;
-  const extent = 1800;
-
+function drawSceneBoundary(
+  ctx: CanvasRenderingContext2D,
+  boundaryRadius: number,
+  time: number,
+  isScanning: boolean,
+  scannedCount: number,
+  currentPath: string,
+  focusName: string,
+) {
   ctx.save();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(14, 165, 233, 0.05)";
+
+  // 1. Chamber Floor Atmosphere
+  const floorGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, boundaryRadius);
+  floorGrad.addColorStop(0, "rgba(13, 27, 56, 0.45)");
+  floorGrad.addColorStop(0.55, "rgba(9, 17, 34, 0.70)");
+  floorGrad.addColorStop(0.85, "rgba(5, 9, 20, 0.90)");
+  floorGrad.addColorStop(1, "rgba(3, 5, 12, 0.98)");
 
   ctx.beginPath();
-  for (let x = -extent; x <= extent; x += gridSize) {
-    ctx.moveTo(x, -extent);
-    ctx.lineTo(x, extent);
+  ctx.arc(0, 0, boundaryRadius, 0, Math.PI * 2);
+  ctx.fillStyle = floorGrad;
+  ctx.fill();
+
+  // 2. Contained Matrix Grid with radial soft mask
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, boundaryRadius - 2, 0, Math.PI * 2);
+  ctx.clip(); // Keep grid cleanly inside boundary!
+
+  const gridSize = 65;
+  ctx.strokeStyle = "rgba(14, 165, 233, 0.07)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = -boundaryRadius; x <= boundaryRadius; x += gridSize) {
+    ctx.moveTo(x, -boundaryRadius);
+    ctx.lineTo(x, boundaryRadius);
   }
-  for (let y = -extent; y <= extent; y += gridSize) {
-    ctx.moveTo(-extent, y);
-    ctx.lineTo(extent, y);
+  for (let y = -boundaryRadius; y <= boundaryRadius; y += gridSize) {
+    ctx.moveTo(-boundaryRadius, y);
+    ctx.lineTo(boundaryRadius, y);
   }
   ctx.stroke();
 
-  // Grid Intersection Plus '+' markers
-  ctx.strokeStyle = "rgba(56, 189, 248, 0.16)";
+  // Plus '+' cross markers at grid intersections
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.22)";
   ctx.lineWidth = 1;
   const crossSize = 3;
   ctx.beginPath();
-  for (let x = -extent; x <= extent; x += gridSize * 2) {
-    for (let y = -extent; y <= extent; y += gridSize * 2) {
-      ctx.moveTo(x - crossSize, y);
-      ctx.lineTo(x + crossSize, y);
-      ctx.moveTo(x, y - crossSize);
-      ctx.lineTo(x, y + crossSize);
+  for (let x = -boundaryRadius + gridSize; x < boundaryRadius; x += gridSize * 2) {
+    for (let y = -boundaryRadius + gridSize; y < boundaryRadius; y += gridSize * 2) {
+      if (Math.hypot(x, y) < boundaryRadius - 30) {
+        ctx.moveTo(x - crossSize, y);
+        ctx.lineTo(x + crossSize, y);
+        ctx.moveTo(x, y - crossSize);
+        ctx.lineTo(x, y + crossSize);
+      }
     }
   }
   ctx.stroke();
+
+  // Concentric Radial Range Rings inside the arena
+  const rangeRings = [150, 275, 390];
+  ctx.setLineDash([3, 7]);
+  ctx.strokeStyle = "rgba(0, 240, 255, 0.10)";
+  for (const r of rangeRings) {
+    if (r < boundaryRadius) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Range ring label along the 45-degree ray
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.font = "9px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(56, 189, 248, 0.35)";
+      ctx.fillText(`${r}R`, r * 0.707 + 4, -r * 0.707 - 4);
+      ctx.restore();
+    }
+  }
+  ctx.setLineDash([]);
+
+  // 3. Sonar Radar Pulse Waves (When Scanning)
+  if (isScanning) {
+    // Sonar ripples
+    for (let i = 0; i < 3; i++) {
+      const pulseT = (time * 0.4 + i * 0.33) % 1;
+      const pr = pulseT * (boundaryRadius - 6);
+      const pAlpha = (1 - pulseT) * 0.38;
+      ctx.strokeStyle = `rgba(0, 240, 255, ${pAlpha})`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(0, 0, pr, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Rotating Radar Sweep Cone
+    const sweepAngle = (time * 1.5) % (Math.PI * 2);
+    const sweepArc = Math.PI * 0.28; // ~50 degrees
+    const sweepGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, boundaryRadius);
+    sweepGrad.addColorStop(0, "rgba(0, 240, 255, 0.22)");
+    sweepGrad.addColorStop(0.7, "rgba(0, 240, 255, 0.08)");
+    sweepGrad.addColorStop(1, "rgba(0, 240, 255, 0.0)");
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, boundaryRadius - 2, sweepAngle - sweepArc, sweepAngle);
+    ctx.closePath();
+    ctx.fillStyle = sweepGrad;
+    ctx.fill();
+
+    // Leading glowing edge line of the sweep
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(
+      Math.cos(sweepAngle) * (boundaryRadius - 2),
+      Math.sin(sweepAngle) * (boundaryRadius - 2)
+    );
+    ctx.strokeStyle = "rgba(0, 240, 255, 0.65)";
+    ctx.lineWidth = 2.0;
+    ctx.shadowColor = "#00F0FF";
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.restore(); // end clip
+
+  // 4. Perimeter Boundary Rings
+  // Outer Neon Shield Ring
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, boundaryRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = isScanning ? "rgba(0, 240, 255, 0.55)" : "rgba(0, 240, 255, 0.32)";
+  ctx.lineWidth = 2.2;
+  ctx.shadowColor = "#00F0FF";
+  ctx.shadowBlur = isScanning ? 18 : 12;
+  ctx.stroke();
+
+  // Secondary dashed ring
+  ctx.setLineDash([4, 8]);
+  ctx.beginPath();
+  ctx.arc(0, 0, boundaryRadius - 12, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(0, 240, 255, 0.16)";
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // 5. Perimeter Compass / Azimuth Ticks
+  ctx.save();
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.35)";
+  ctx.lineWidth = 1;
+  const numTicks = 72; // every 5 degrees
+  for (let i = 0; i < numTicks; i++) {
+    const angle = (i / numTicks) * Math.PI * 2;
+    const isMajor = i % 6 === 0; // every 30 degrees
+    const tickLen = isMajor ? 8 : 4;
+    const innerR = boundaryRadius - tickLen;
+    const outerR = boundaryRadius;
+
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    ctx.beginPath();
+    ctx.moveTo(cos * innerR, sin * innerR);
+    ctx.lineTo(cos * outerR, sin * outerR);
+    ctx.strokeStyle = isMajor ? "rgba(0, 240, 255, 0.65)" : "rgba(56, 189, 248, 0.25)";
+    ctx.stroke();
+  }
+
+  // Cardinal direction ticks & badges
+  const cardinals = [
+    { label: "000° // N", angle: -Math.PI / 2 },
+    { label: "090° // E", angle: 0 },
+    { label: "180° // S", angle: Math.PI / 2 },
+    { label: "270° // W", angle: Math.PI },
+  ];
+  ctx.font = "bold 9px monospace";
+  ctx.fillStyle = "rgba(186, 230, 253, 0.7)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  for (const card of cardinals) {
+    const textR = boundaryRadius + 14;
+    const tx = Math.cos(card.angle) * textR;
+    const ty = Math.sin(card.angle) * textR;
+    ctx.fillText(card.label, tx, ty);
+  }
+  ctx.restore();
+
+  // 6. Cybernetic Corner Framing Brackets
+  const bracketOffset = boundaryRadius + 22;
+  const bracketArm = 28;
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(0, 240, 255, 0.4)";
+  ctx.lineWidth = 1.5;
+  ctx.fillStyle = "rgba(14, 165, 233, 0.8)";
+  ctx.font = "bold 10px monospace";
+
+  // Top-Left Bracket
+  ctx.beginPath();
+  ctx.moveTo(-bracketOffset, -bracketOffset + bracketArm);
+  ctx.lineTo(-bracketOffset, -bracketOffset);
+  ctx.lineTo(-bracketOffset + bracketArm, -bracketOffset);
+  ctx.stroke();
+  ctx.textAlign = "left";
+  ctx.textBaseline = "bottom";
+  ctx.fillText("┌ SEC.CORE // " + (focusName || "ROOT"), -bracketOffset + 6, -bracketOffset - 4);
+
+  // Top-Right Bracket
+  ctx.beginPath();
+  ctx.moveTo(bracketOffset - bracketArm, -bracketOffset);
+  ctx.lineTo(bracketOffset, -bracketOffset);
+  ctx.lineTo(bracketOffset, -bracketOffset + bracketArm);
+  ctx.stroke();
+  ctx.textAlign = "right";
+  ctx.fillText(`FIELD: ${Math.round(boundaryRadius)}R // 2D-FLUID ┐`, bracketOffset - 6, -bracketOffset - 4);
+
+  // Bottom-Left Bracket (Live Scanning Status)
+  ctx.beginPath();
+  ctx.moveTo(-bracketOffset, bracketOffset - bracketArm);
+  ctx.lineTo(-bracketOffset, bracketOffset);
+  ctx.lineTo(-bracketOffset + bracketArm, bracketOffset);
+  ctx.stroke();
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  if (isScanning) {
+    ctx.fillStyle = "#38BDF8";
+    ctx.shadowColor = "#00F0FF";
+    ctx.shadowBlur = 8;
+    ctx.fillText(`└ ⚡ SCANNING: ${scannedCount.toLocaleString()} NODES`, -bracketOffset + 6, bracketOffset + 4);
+    ctx.shadowBlur = 0;
+  } else {
+    ctx.fillStyle = "rgba(148, 163, 184, 0.75)";
+    ctx.fillText(`└ ● STATUS: READY // MATRIX NOMINAL`, -bracketOffset + 6, bracketOffset + 4);
+  }
+
+  // Bottom-Right Bracket
+  ctx.beginPath();
+  ctx.moveTo(bracketOffset - bracketArm, bracketOffset);
+  ctx.lineTo(bracketOffset, bracketOffset);
+  ctx.lineTo(bracketOffset, bracketOffset - bracketArm);
+  ctx.stroke();
+  ctx.textAlign = "right";
+  ctx.fillStyle = "rgba(148, 163, 184, 0.75)";
+  ctx.fillText(`CONTAINMENT MATRIX ┘`, bracketOffset - 6, bracketOffset + 4);
+
+  // If scanning, show live active path ticker below
+  if (isScanning && currentPath) {
+    const maxLen = 42;
+    const displayPath = currentPath.length > maxLen ? "…" + currentPath.slice(-maxLen) : currentPath;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.font = "9px monospace";
+    ctx.fillStyle = "rgba(56, 189, 248, 0.75)";
+    ctx.fillText(`>> SCAN PATH: ${displayPath}`, 0, bracketOffset + 18);
+  }
+
+  ctx.restore();
   ctx.restore();
 }
 
@@ -1003,6 +1381,7 @@ function drawConnectorLine(
   time: number,
   opacity: number,
   showSpark = false,
+  isScanning = false,
 ) {
   if (opacity <= 0.02) return;
   const dist = Math.hypot(x2 - x1, y2 - y1);
@@ -1017,7 +1396,7 @@ function drawConnectorLine(
   grad.addColorStop(1, `${color}99`);
 
   ctx.strokeStyle = grad;
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = isScanning ? 1.8 : 1.5;
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
@@ -1032,16 +1411,17 @@ function drawConnectorLine(
     ctx.arc(x2, y2, 3.2, 0, Math.PI * 2);
     ctx.fill();
   } else {
-    // Normal traveling energy pulse
-    const t = (time * 0.45 + (x2 * 0.01)) % 1;
+    // Traveling energy pulse (higher frequency during scanning)
+    const pulseSpeed = isScanning ? 0.9 : 0.45;
+    const t = (time * pulseSpeed + (x2 * 0.01)) % 1;
     const px = x1 + (x2 - x1) * t;
     const py = y1 + (y2 - y1) * t;
 
-    ctx.fillStyle = "#A5F3FC";
+    ctx.fillStyle = isScanning ? "#FFFFFF" : "#A5F3FC";
     ctx.shadowColor = "#00F0FF";
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = isScanning ? 10 : 6;
     ctx.beginPath();
-    ctx.arc(px, py, 1.8, 0, Math.PI * 2);
+    ctx.arc(px, py, isScanning ? 2.4 : 1.8, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -1091,6 +1471,9 @@ interface LiquidBallDrawOptions {
   icon?: string;
   isHub?: boolean;
   isSatellite?: boolean;
+  growthPulse?: number;
+  isFilling?: boolean;
+  isScanning?: boolean;
 }
 
 function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptions) {
@@ -1110,6 +1493,9 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
     icon,
     isHub = false,
     isSatellite = false,
+    growthPulse = 0,
+    isFilling = false,
+    isScanning = false,
   } = opts;
 
   if (!Number.isFinite(radius) || radius < 3 || opacity <= 0.01) return;
@@ -1120,6 +1506,21 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
   // Scale bounce when hovered or selected
   const activeScale = isHovered ? 1.08 : isSelected ? 1.04 : 1.0;
   const r = Math.max(3, radius * activeScale);
+
+  // 0. Growth Pulse Shockwave Ring (When node swells or fills)
+  if (growthPulse > 0.04) {
+    ctx.save();
+    const pulseR = r + (1 - growthPulse) * (isHub ? 24 : 14);
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(1, pulseR), 0, Math.PI * 2);
+    ctx.strokeStyle = theme.primary;
+    ctx.lineWidth = Math.max(0.8, 2.2 * growthPulse);
+    ctx.shadowColor = theme.primary;
+    ctx.shadowBlur = 12 * growthPulse;
+    ctx.globalAlpha = Math.min(1, opacity * growthPulse * 0.85);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // 1. Dark Translucent Glass Base
   ctx.save();
@@ -1150,9 +1551,11 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.clip(); // Clip to the circle
 
-  const clampedFill = Math.min(0.95, Math.max(0.06, fill));
+  const clampedFill = Math.min(0.95, Math.max(0.04, fill));
   const waterLevel = y + r - 2 * r * clampedFill;
-  const waveAmp = Math.max(1.8, r * (isHub ? 0.08 : 0.065));
+  const agitation = isFilling ? 1.45 : isScanning ? 1.25 : 1.0;
+  const waveAmp = Math.max(1.8, r * (isHub ? 0.08 : 0.065) * agitation);
+  const waveSpeed = isFilling ? 4.8 : isScanning ? 4.0 : 3.2;
   const waveFreq = isHub ? 0.04 : 0.06;
 
   ctx.beginPath();
@@ -1163,8 +1566,8 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
   for (let u = -r; u <= r; u += step) {
     const wy =
       waterLevel +
-      Math.sin(u * waveFreq + time * 3.2 + x * 0.02) * waveAmp +
-      Math.cos(u * waveFreq * 1.6 - time * 2.4) * (waveAmp * 0.45);
+      Math.sin(u * waveFreq + time * waveSpeed + x * 0.02) * waveAmp +
+      Math.cos(u * waveFreq * 1.6 - time * (waveSpeed * 0.75)) * (waveAmp * 0.45);
     wavePoints.push({ u, wy });
   }
 
@@ -1198,21 +1601,26 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
   ctx.shadowBlur = 10;
   ctx.stroke();
 
-  // Micro-Bubbles Floating Inside Liquid
+  // Micro-Bubbles Floating Inside Liquid (extra during filling or scanning)
   if (r > 7) {
-    const bubbleCount = isHub ? 12 : isSatellite ? 3 : 6;
+    const bubbleCount = isFilling
+      ? (isHub ? 18 : isSatellite ? 5 : 10)
+      : isScanning
+      ? (isHub ? 15 : isSatellite ? 4 : 8)
+      : (isHub ? 12 : isSatellite ? 3 : 6);
+
     ctx.shadowBlur = 0;
     for (let b = 0; b < bubbleCount; b++) {
       const seed = (b + 1) * 31.7 + x * 0.3;
-      const bSpeed = 0.4 + (b % 3) * 0.2;
+      const bSpeed = (isFilling ? 0.6 : 0.4) + (b % 3) * 0.25;
       const bProgress = (time * bSpeed + seed) % 1;
       const by = y + r - bProgress * (2 * r * clampedFill - 4);
       const bx = x + Math.sin(time * 3 + seed) * (r * 0.55);
 
-      const bAlpha = Math.sin(bProgress * Math.PI) * 0.6;
+      const bAlpha = Math.sin(bProgress * Math.PI) * 0.65;
       ctx.fillStyle = `rgba(255, 255, 255, ${bAlpha})`;
       ctx.beginPath();
-      ctx.arc(bx, by, isHub ? 2 : 1.2, 0, Math.PI * 2);
+      ctx.arc(bx, by, isHub ? 2.2 : 1.3, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -1229,6 +1637,19 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
     if (textY < y + r - 10) {
       ctx.fillText(percentFormatted, x, textY);
     }
+  }
+
+  // Central Hub scanning pulse in core
+  if (isHub && isScanning) {
+    const coreR = Math.max(4, r * 0.26 + Math.sin(time * 6) * 3.5);
+    const coreGrad = ctx.createRadialGradient(x, y, 0, x, y, coreR);
+    coreGrad.addColorStop(0, "rgba(255, 255, 255, 0.5)");
+    coreGrad.addColorStop(0.5, "rgba(0, 240, 255, 0.25)");
+    coreGrad.addColorStop(1, "rgba(0, 240, 255, 0)");
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath();
+    ctx.arc(x, y, coreR, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   ctx.restore(); // Restore clip
