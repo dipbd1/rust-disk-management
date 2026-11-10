@@ -24,6 +24,7 @@ export function ViewerInspector() {
 
   const hoveredNodeId = useVisualizerStore((state) => state.hoveredNodeId);
   const [copied, setCopied] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   // Determine active inspect target: hovered -> selected -> focus hub
   const hub = graphView?.focus ?? (focusedNodeId ? nodes[focusedNodeId] : undefined);
@@ -49,9 +50,23 @@ export function ViewerInspector() {
     setTimeout(() => setCopied(false), 1600);
   };
 
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setCollapsed(false)}
+        className="pointer-events-auto absolute right-3 bottom-3 z-10 flex h-8 items-center gap-1.5 rounded-full border border-white/10 bg-slate-900/80 px-3 text-xs text-slate-300 shadow-xl backdrop-blur-md transition-all hover:border-cyan-400 hover:text-white"
+        title="Open Details Inspector"
+      >
+        <span className="h-2 w-2 rounded-full bg-cyan-400" />
+        <span>Inspect</span>
+      </button>
+    );
+  }
+
   return (
     <aside className="pointer-events-auto absolute right-3 bottom-3 z-10 w-80 rounded-2xl border border-white/10 bg-slate-900/85 p-3.5 text-xs text-slate-200 shadow-2xl backdrop-blur-md">
-      {/* Header with Glyph, Name, and Role Badge */}
+      {/* Header with Glyph, Name, Role Badge and Close Button */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span
@@ -69,11 +84,21 @@ export function ViewerInspector() {
             </p>
           </div>
         </div>
-        {activeNode && (
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ${categoryTextClass(activeNode)} bg-white/5`}>
-            {activeNode.category}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {activeNode && (
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ${categoryTextClass(activeNode)} bg-white/5`}>
+              {activeNode.category}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            className="flex h-5 w-5 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+            title="Close Inspector"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {/* Metrics Section */}
