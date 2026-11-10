@@ -15,7 +15,7 @@ import { initialData, type FileStore } from "./types";
 export const useFileStore = create<FileStore>((set, get) => ({
   ...initialData,
   boot: () => boot(set, get),
-  scanDrive: (mount) => scanDrive(set, get, mount),
+  scanDrive: (mount) => scanDrive(set, get, mount, true),
   cancelScan: async () => {
     try {
       await cancelActiveScan();

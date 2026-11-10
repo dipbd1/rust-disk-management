@@ -1,16 +1,65 @@
-import { Channel, invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { Channel } from "@tauri-apps/api/core";
+import { invoke } from "tauri-remote-ui/api/core";
+import { listen } from "tauri-remote-ui/api/event";
 import type { ChildrenPage, DeleteResult, DriveInfo, GraphView, ScanProgress } from "../types/filesystem";
 
-/** The only module that imports @tauri-apps/api. */
+/** The only module that imports Tauri IPC. `Channel` stays on `@tauri-apps/api`; `invoke` and `listen` use the remote-ui shim so a browser can reach the running app. */
 export function listDrives(): Promise<DriveInfo[]> {
   return invoke<DriveInfo[]>("list_drives");
 }
 
-export function startScan(path: string, onProgress: (progress: ScanProgress) => void): Promise<ScanProgress> {
-  const channel = new Channel<ScanProgress>();
-  channel.onmessage = onProgress;
-  return invoke<ScanProgress>("start_scan", { path, onProgress: channel });
+function inDesktopWebview(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+export async function startScan(
+  path: string,
+  onProgress: (progress: ScanProgress) => void,
+  force = false,
+): Promise<ScanProgress> {
+  if (inDesktopWebview()) {
+    const channel = new Channel<ScanProgress>();
+    channel.onmessage = onProgress;
+    return invoke<ScanProgress>("start_scan", { path, onProgress: channel });
+  }
+  // The socket invoke times out at 30s. The walk itself finishes on `scan-progress` with `done`.
+  return awaitBrowserScan(path, onProgress, force);
+}
+
+function awaitBrowserScan(
+  path: string,
+  onProgress: (progress: ScanProgress) => void,
+  force: boolean,
+): Promise<ScanProgress> {
+  let resolveScan: (progress: ScanProgress) => void = () => {};
+  let rejectScan: (error: unknown) => void = () => {};
+  const finished = new Promise<ScanProgress>((resolve, reject) => {
+    resolveScan = resolve;
+    rejectScan = reject;
+  });
+  let settled = false;
+  const settle = (apply: () => void) => {
+    if (settled) return;
+    settled = true;
+    apply();
+  };
+
+  return (async () => {
+    const stopProgress = await listen<ScanProgress>("scan-progress", (event) => {
+      onProgress(event.payload);
+      if (event.payload.done) settle(() => resolveScan(event.payload));
+    });
+    const stopError = await listen<string>("scan-error", (event) => {
+      settle(() => rejectScan(new Error(event.payload)));
+    });
+    try {
+      await invoke("start_scan_remote", { path, force });
+      return await finished;
+    } finally {
+      stopProgress();
+      stopError();
+    }
+  })();
 }
 
 export function cancelScan(): Promise<void> {

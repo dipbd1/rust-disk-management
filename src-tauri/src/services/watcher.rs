@@ -2,7 +2,8 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::Duration;
 
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
+use tauri_remote_ui::EmitterExt;
 
 use crate::error::AppError;
 use crate::services::paths::{as_path, normalize_path};
@@ -43,19 +44,29 @@ impl FolderWatcher {
     }
 }
 
+fn publish_stale<R: Runtime>(app: &AppHandle<R>, path: String) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let Some(window) = app.get_webview_window("main") else {
+            return;
+        };
+        let _ = window.emit(FS_STALE_EVENT, path).await;
+    });
+}
+
 fn debounce_loop<R: Runtime>(rx: mpsc::Receiver<()>, app: AppHandle<R>, path: String) {
     let mut dirty = false;
     loop {
         match rx.recv_timeout(DEBOUNCE) {
             Ok(()) => dirty = true,
             Err(RecvTimeoutError::Timeout) if dirty => {
-                let _ = app.emit(FS_STALE_EVENT, path.clone());
+                publish_stale(&app, path.clone());
                 dirty = false;
             }
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => {
                 if dirty {
-                    let _ = app.emit(FS_STALE_EVENT, path);
+                    publish_stale(&app, path);
                 }
                 break;
             }

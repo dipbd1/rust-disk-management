@@ -8,8 +8,8 @@ This file is the source of truth for how the app is structured and how it stays 
 TopDriveBar / tree / graph
         │  Zustand actions only
         ▼
-src/services/tauriBridge.ts     ← only frontend module that imports @tauri-apps/api
-        │  invoke + Channel
+src/services/tauriBridge.ts     ← only frontend module that imports Tauri IPC
+        │  invoke + listen (tauri-remote-ui) and Channel (@tauri-apps/api)
         ▼
 src-tauri/src/commands/         ← thin wrappers, no scanning logic
         ▼
@@ -49,6 +49,8 @@ Rust is authoritative for paging and the graph cap. Do not re-implement the cap 
 - `trash_path` uses the `trash` crate. `permanent_delete` is the only caller of `remove_file` / `remove_dir_all`. Both then call `ScanIndex::remove_path`, which subtracts `freedBytes` up the ancestor chain and returns those nodes.
 - The watcher is non-recursive on the focused folder, debounced, and emits `fs-stale`. It does not rescan. The UI shows a rescan action. Rescan always restarts from the active drive so ancestor totals stay honest.
 - Commands return `Result<T, AppError>`. `AppError` serializes as a string. No `.unwrap()` or `.expect()` in commands or services. `Builder::run` in `lib.rs` is the one allowed startup `.expect()`.
+- Debug builds start `tauri-remote-ui` on `127.0.0.1:9090` from `lib.rs`, with the desktop window left active. Release builds do not open that socket. Vite proxies `/remote_ui_ws`, `/remote_ui_info`, and `/remote_ui_disconnect` to that port. A browser on `http://localhost:1420` uses the same commands once that process is listening. If the socket drops, the page reconnects instead of leaving for the plugin disconnect screen.
+- The desktop webview calls `start_scan` and receives progress on a `Channel`. The browser calls `start_scan_remote`, which returns immediately, and waits for `scan-progress` with `done: true`. That avoids the remote-ui invoke timeout. Boot attaches to a scan already running for that drive, or replays a finished one. Choosing a drive or Rescan passes `force` and starts a new walk. One emit task coalesces browser progress. Failures emit `scan-error`. `fs-stale` uses `EmitterExt` too.
 
 ## Frontend patterns
 

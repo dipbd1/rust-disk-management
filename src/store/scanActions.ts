@@ -20,13 +20,13 @@ export async function boot(set: SetFile, get: GetFile): Promise<void> {
     const drives = await listDrives();
     set({ drives });
     const fixed = drives.find((drive) => !drive.isRemovable);
-    if (fixed) await scanDrive(set, get, fixed.mount);
+    if (fixed) await scanDrive(set, get, fixed.mount, false);
   } catch (error) {
     set({ toast: errorMessage(error), scanStatus: "error" });
   }
 }
 
-export async function scanDrive(set: SetFile, get: GetFile, mount: string): Promise<void> {
+export async function scanDrive(set: SetFile, get: GetFile, mount: string, force = true): Promise<void> {
   const token = ++session.scan;
   session.preview = token;
   const drive = get().drives.find((item) => item.mount === mount);
@@ -51,10 +51,14 @@ export async function scanDrive(set: SetFile, get: GetFile, mount: string): Prom
     query: "",
   });
   try {
-    const finalProgress = await startScan(mount, (progress) => {
-      if (token !== session.scan || session.preview !== token) return;
-      set((state) => applyPreview(state, progress));
-    });
+    const finalProgress = await startScan(
+      mount,
+      (progress) => {
+        if (token !== session.scan || session.preview !== token) return;
+        set((state) => applyPreview(state, progress));
+      },
+      force,
+    );
     if (token !== session.scan) return;
     session.preview = -1;
     set((state) => applyPreview(state, finalProgress));

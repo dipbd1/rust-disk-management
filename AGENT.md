@@ -16,7 +16,7 @@ Forbidden drift:
 
 - Sending the full recursive tree to the webview
 - Rendering more than `GRAPH_CHILD_CAP` (60) child spheres
-- Calling `@tauri-apps/api` outside `src/services/tauriBridge.ts`
+- Calling `@tauri-apps/api` or `tauri-remote-ui` outside `src/services/tauriBridge.ts`
 - `.unwrap()` / `.expect()` in commands or services
 - `setState` inside `useFrame`
 - `std::fs::remove_dir_all` outside `permanent_delete`
@@ -28,7 +28,7 @@ Forbidden drift:
   - `src-tauri/src/commands/` contains ONLY thin Tauri command wrappers. Filesystem scanning, size aggregation, and OS operations belong in `src-tauri/src/services/`.
   - `src/components/explorer/` contains ONLY 2D UI components.
   - `src/components/visualizer/` contains ONLY 3D React Three Fiber components.
-  - Frontend components NEVER call `@tauri-apps/api` directly; all IPC calls must go through typed functions in `src/services/tauriBridge.ts`.
+  - Frontend components NEVER call `@tauri-apps/api` or `tauri-remote-ui` directly; all IPC calls must go through typed functions in `src/services/tauriBridge.ts`. `invoke` and `listen` come from `tauri-remote-ui`. `Channel` stays on `@tauri-apps/api`.
 - **Single source of truth:** Use Zustand (`src/store/useFileStore.ts`) for shared state (`focusedNodeId`, `selectedNodeId`, `scanStatus`, graph view, paged children).
 - **Rust owns the index.** JavaScript holds the open branch, one folder page, and the current graph view. See the caps table in `docs/ARCHITECTURE.md`.
 
@@ -36,7 +36,7 @@ Forbidden drift:
 
 - **NO PANICS IN PRODUCTION:** Never use `.unwrap()` or `.expect()` inside commands or services. Define a unified `AppError` enum in `src-tauri/src/error.rs` using `thiserror::Error` and implement `serde::Serialize` for `AppError` so all Tauri commands return `Result<T, AppError>`.
 - **Parallel non-blocking scanning:** Use `jwalk` with `skip_hidden(false)` and `follow_links(false)`. Never block the main Tauri thread. Heavy I/O uses `tauri::async_runtime::spawn_blocking`.
-- **Streaming IPC:** Use `tauri::ipc::Channel` to stream `ScanProgress` every 100ms. The payload carries a preview of at most 200 top-level nodes, not the whole tree.
+- **Streaming IPC:** Use `tauri::ipc::Channel` to stream `ScanProgress` every 100ms inside the desktop webview. Also emit `scan-progress` with `EmitterExt` so a browser on the remote-ui socket gets the same payload. The browser command returns immediately and the page waits for `done: true`. The payload carries a preview of at most 200 top-level nodes, not the whole tree. The remote-ui server starts only in debug builds.
 - **Cancellation:** `Arc<AtomicBool>` shared with `cancel_scan`. Relaxed ordering is enough. A generation counter discards a scan that a newer one replaced. Store the partial index on cancel.
 - **Safe deletions:** Default user deletes go through the `trash` crate. `std::fs::remove_file` / `remove_dir_all` run only inside `permanent_delete`, after the UI confirmation modal. Never delete a drive root (`C:\`).
 - **Windows paths:** Normalize with `services/paths.rs` before a path is stored or sent to the UI. One function, no ad-hoc slash logic in components.
