@@ -669,7 +669,7 @@ export function OrganicGraph2D() {
             name: trans.toNode.name || activeDrive || "C:",
             sizeFormatted: `(${formatBytes(trans.toNode.sizeBytes)})`,
             percentFormatted: `${Math.round(movingHubFill * 100)}%`,
-            icon: "📁",
+            icon: trans.toTheme.icon,
             growthPulse: 0.65,
             isFilling: true,
             isScanning,
@@ -880,7 +880,7 @@ export function OrganicGraph2D() {
             sizeFormatted: `(${formatBytes(hubNode.node.sizeBytes)})`,
             percentFormatted: `${Math.round(hubNode.fill * 100)}%`,
             isHub: true,
-            icon: "📁",
+            icon: hubNode.theme.icon,
             growthPulse: hubAnim.pulse,
             isFilling: hubAnim.isFilling,
             isScanning,
@@ -1561,6 +1561,39 @@ function drawSatelliteConnector(
   ctx.restore();
 }
 
+function verticalBandsOverlap(topA: number, bottomA: number, topB: number, bottomB: number): boolean {
+  return topA < bottomB && topB < bottomA;
+}
+
+function fitIconName(
+  ctx: CanvasRenderingContext2D,
+  icon: string | undefined,
+  name: string,
+  maxWidth: number,
+): string {
+  const prefix = icon ? `${icon}  ` : "";
+  const full = `${prefix}${name}`;
+  if (ctx.measureText(full).width <= maxWidth) return full;
+
+  const ellipsis = "…";
+  let best = "";
+  let low = 0;
+  let high = name.length;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const candidate = `${prefix}${name.slice(0, mid)}${ellipsis}`;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      best = candidate;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  if (best) return best;
+  if (icon && ctx.measureText(icon).width <= maxWidth) return icon;
+  return ellipsis;
+}
+
 interface LiquidBallDrawOptions {
   x: number;
   y: number;
@@ -1731,6 +1764,27 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
     }
   }
 
+  // Hub label anchors are known before the percentage so a high fill
+  // can keep "82%" near the liquid surface while icon+name sit at center.
+  let hubNameFontSize = 12;
+  let hubSizeFontSize = 9;
+  let hubNameY = y;
+  let hubSizeY = y;
+  if (isHub) {
+    const hubScale = Math.max(0.55, Math.min(1.25, r / 88));
+    hubNameFontSize = Math.max(12, Math.round(21 * hubScale));
+    hubSizeFontSize = Math.max(9, Math.round(12 * hubScale));
+    hubNameY = y;
+    hubSizeY =
+      hubNameY +
+      hubNameFontSize / 2 +
+      Math.max(4, Math.round(hubNameFontSize * 0.22)) +
+      hubSizeFontSize / 2;
+  }
+
+  let drawnPercentY: number | null = null;
+  let drawnPercentHalf = 0;
+
   // Inside-liquid percentage badge
   if (!isSatellite && percentFormatted && clampedFill > 0.25 && r > 16) {
     ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
@@ -1742,8 +1796,30 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
     ctx.textBaseline = "middle";
     ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
     ctx.shadowBlur = 4;
-    const textY = isHub ? waterLevel + Math.round(r * 0.3) : waterLevel + Math.round(r * 0.35);
+    const pctHalf = pctFontSize / 2;
+    let textY = waterLevel + Math.round(r * (isHub ? 0.3 : 0.35));
+    if (isHub) {
+      const nameTop = hubNameY - hubNameFontSize / 2;
+      const nameBottom = hubNameY + hubNameFontSize / 2;
+      const sizeTop = hubSizeY - hubSizeFontSize / 2;
+      const sizeBottom = hubSizeY + hubSizeFontSize / 2;
+      const gap = 4;
+      for (let guard = 0; guard < 3; guard++) {
+        const pctTop = textY - pctHalf;
+        const pctBottom = textY + pctHalf;
+        const hitsName = verticalBandsOverlap(pctTop, pctBottom, nameTop, nameBottom);
+        const hitsSize =
+          Boolean(sizeFormatted) && verticalBandsOverlap(pctTop, pctBottom, sizeTop, sizeBottom);
+        if (!hitsName && !hitsSize) break;
+        const obstacleBottom = hitsSize ? sizeBottom : nameBottom;
+        const pushed = obstacleBottom + gap + pctHalf;
+        if (pushed <= textY) break;
+        textY = pushed;
+      }
+    }
     if (textY < y + r - 8) {
+      drawnPercentY = textY;
+      drawnPercentHalf = pctHalf;
       ctx.fillText(percentFormatted, x, textY);
     }
   }
@@ -1799,36 +1875,30 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
     ctx.restore();
   }
 
-  // 6. Hub Center Label
+  // 6. Hub Center Label — icon and name share one middle-aligned line
   if (isHub) {
     ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    const hubScale = Math.max(0.55, Math.min(1.25, r / 88));
-    const iconFontSize = Math.max(12, Math.round(20 * hubScale));
-    const nameFontSize = Math.max(12, Math.round(21 * hubScale));
-    const sizeFontSize = Math.max(9, Math.round(12 * hubScale));
-
-    ctx.font = `${iconFontSize}px system-ui, sans-serif`;
-    ctx.fillText("📁", x, y - r * 0.28);
-
+    ctx.font = `bold ${hubNameFontSize}px system-ui, sans-serif`;
     ctx.fillStyle = "#FFFFFF";
-    ctx.font = `bold ${nameFontSize}px system-ui, sans-serif`;
-    ctx.shadowColor = "rgba(0, 240, 255, 0.8)";
-    ctx.shadowBlur = 8;
-    ctx.fillText(name || "C:", x, y + r * 0.02);
+    ctx.shadowColor = "rgba(0, 0, 0, 0.88)";
+    ctx.shadowBlur = 6;
+    const hubLabel = fitIconName(ctx, icon, name || "C:", r * 1.35);
+    ctx.fillText(hubLabel, x, hubNameY);
 
     if (sizeFormatted) {
       ctx.fillStyle = "rgba(224, 242, 254, 0.9)";
-      ctx.font = `${sizeFontSize}px system-ui, sans-serif`;
+      ctx.font = `${hubSizeFontSize}px system-ui, sans-serif`;
+      ctx.shadowColor = "rgba(0, 0, 0, 0.88)";
       ctx.shadowBlur = 4;
-      ctx.fillText(sizeFormatted, x, y + r * 0.26);
+      ctx.fillText(sizeFormatted, x, hubSizeY);
     }
     ctx.restore();
   }
 
-  // 7. Level 1 Labels (Size Above, Name Below)
+  // 7. Level 1 Labels (Size Above, Icon + Name Below)
   if (!isHub && !isSatellite) {
     ctx.save();
     ctx.textAlign = "center";
@@ -1838,6 +1908,7 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
     const nameFontSize = Math.max(10, Math.round(12 * childScale));
 
     if (sizeFormatted) {
+      ctx.textBaseline = "alphabetic";
       ctx.font = `bold ${sizeFontSize}px system-ui, sans-serif`;
       const pillY = y - r - Math.max(8, Math.round(12 * childScale));
       ctx.fillStyle = "rgba(226, 232, 240, 0.95)";
@@ -1847,14 +1918,20 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
     }
 
     if (name) {
-      const nameY = y + r + Math.max(12, Math.round(18 * childScale));
+      ctx.textBaseline = "middle";
       ctx.font = `500 ${nameFontSize}px system-ui, sans-serif`;
+      const captionHalf = nameFontSize / 2;
+      let nameY = y + r + Math.max(12, Math.round(18 * childScale));
+      if (drawnPercentY !== null) {
+        const pctBottom = drawnPercentY + drawnPercentHalf;
+        if (nameY - captionHalf < pctBottom + 4) {
+          nameY = pctBottom + 4 + captionHalf;
+        }
+      }
       ctx.fillStyle = isSelected ? "#38BDF8" : isHovered ? "#FFFFFF" : "#E2E8F0";
       ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
       ctx.shadowBlur = 5;
-
-      const truncated = name.length > 20 ? `${name.substring(0, 18)}…` : name;
-      const displayLabel = icon ? `${icon}  ${truncated}` : truncated;
+      const displayLabel = fitIconName(ctx, icon, name, Math.max(r * 2.4, nameFontSize * 6));
       ctx.fillText(displayLabel, x, nameY);
     }
     ctx.restore();
