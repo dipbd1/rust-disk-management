@@ -55,12 +55,14 @@ Rust is authoritative for paging and the graph cap. Do not re-implement the cap 
 ## Frontend patterns
 
 - Zustand (`useFileStore`) is the only shared state. Components do not call `invoke`.
-- Tree pages (`childPages`, source `preview` or `index`) and the filtered folder list (`list`) are separate. A search must not replace the tree cache.
+- Tree pages (`childPages`, source `preview` or `index`) and the filtered folder list (`list`) are separate. A search must not replace the tree cache. The folder list is not rendered; `list` and `refreshList` stay so filtered results never mix into tree pages.
+- The selection details panel is a 2D layout widget (`components/layout/ViewerInspector.tsx`) docked under the folder tree by `SplitWorkspace`. It is not an overlay on the graph. `SplitWorkspace` owns the panel height ratio and collapsed flag. The graph surface is the canvas and HUD only.
 - Lists render through `@tanstack/react-virtual`. A "load more" row fetches the next page. Do not map a filesystem array into DOM nodes.
 - 3D code lives under `src/components/visualizer/`. `useFrame` may write refs and shader uniforms. It may call `useFileStore.getState()`. It must not call a React `setState` every frame. A one-shot action (the drain finished) is allowed.
 - Sphere geometry and the glass `MeshPhysicalMaterial` are allocated once per graph mount and passed down. Liquid `ShaderMaterial`s are per sphere because their uniforms differ. Meshes that share geometry use `dispose={null}` so one unmount does not free the shared GPU buffer.
 - `d3-force-3d` runs when the graph payload changes, not every frame. `useFrame` only lerps meshes toward those targets.
 - Category colors: folders cyan `#00F0FF` → `#0066FF`, media `#FF007A` → `#7928CA`, code/archives/binaries `#00FF87` → `#00B4DB`, files over 5 GiB `#FFC837` → `#FF8008`.
+- Shared chrome lives in `src/index.css` (page background `#0b0f17`, text `#e2e8f0`). Scrollbars are one global rule there: 8px, transparent track, slate-600 thumb (`#475569`), slate-400 on hover (`#94a3b8`). Every overflow surface uses it. Do not restyle a panel's scrollbar on its own.
 
 ## Where new code goes
 

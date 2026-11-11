@@ -24,6 +24,7 @@ A high-performance desktop storage analyzer and file management utility for Wind
   - Move to Recycle Bin
   - Permanently Delete (with confirmation prompt)
   - Copy Full Path
+- **FR-3.4:** The left column shall contain the virtualized folder tree and a docked selection-details panel. The panel collapses to its header and resizes vertically against the tree.
 
 #### FR-4: Right Pane — 3D Liquid Sphere Graph
 - **FR-4.1:** The right pane shall render the currently focused folder as a central 3D sphere and its immediate children as connected satellite spheres using a 3D force-directed layout (`d3-force-3d`).
@@ -52,3 +53,4 @@ These decisions are part of the contract. The implementation detail lives in [AR
 - Hidden files are scanned. `System Volume Information` and `$Recycle.Bin` are not. Directory junctions are recorded but not followed.
 - The filtered file list and the unfiltered tree use separate page caches.
 - Bloom post-processing is intentionally omitted so integrated GPUs can hold 60 FPS. Liquid glow comes from the shader.
+- Scrollable panels use the thin dark scrollbar from `src/index.css` (slate thumb, transparent track). The platform light scrollbar is not used, and scrollbars are not hidden.

@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { diskUsedRatio, formatDuration } from "../../lib/format";
 import { breadcrumbs } from "../../lib/paths";
 import { useFileStore } from "../../store/useFileStore";
@@ -9,24 +8,11 @@ export function TopDriveBar() {
   const scanDrive = useFileStore((state) => state.scanDrive);
   const focusedNodeId = useFileStore((state) => state.focusedNodeId);
   const focusNode = useFileStore((state) => state.focusNode);
-  const query = useFileStore((state) => state.query);
-  const setQuery = useFileStore((state) => state.setQuery);
   const scanStatus = useFileStore((state) => state.scanStatus);
   const progress = useFileStore((state) => state.progress);
   const stale = useFileStore((state) => state.stale);
   const cancelScan = useFileStore((state) => state.cancelScan);
   const rescan = useFileStore((state) => state.rescan);
-  const [text, setText] = useState("");
-
-  useEffect(() => {
-    setText(query);
-  }, [query]);
-
-  useEffect(() => {
-    if (text === query) return;
-    const timer = window.setTimeout(() => setQuery(text), 200);
-    return () => window.clearTimeout(timer);
-  }, [text, query, setQuery]);
 
   const crumbs = focusedNodeId ? breadcrumbs(focusedNodeId) : [];
 
@@ -62,13 +48,6 @@ export function TopDriveBar() {
           </span>
         ))}
       </nav>
-      <input
-        value={text}
-        onChange={(event) => setText(event.currentTarget.value)}
-        placeholder="Filter this folder"
-        aria-label="Filter this folder"
-        className="h-8 w-40 shrink-0 rounded-md border border-white/10 bg-black/20 px-2 text-sm outline-none placeholder:text-slate-500 focus:border-cyan-300/60"
-      />
       {scanStatus === "scanning" && progress ? (
         <span className="hidden max-w-48 truncate text-xs text-cyan-100 xl:inline" title={progress.currentPath}>
           {progress.scannedCount.toLocaleString()} · {formatDuration(progress.elapsedMs)}
