@@ -127,6 +127,38 @@ function easeOutBack(x: number): number {
   return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
 }
 
+// Clamp panning so the visualizer cannot be dragged infinitely into empty space.
+// Keeps the scene comfortably bounded within view while allowing full inspection.
+function clampPan(
+  pan: { x: number; y: number },
+  zoom: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  boundaryRadius: number
+): { x: number; y: number } {
+  const centerX = canvasWidth / 2;
+  const centerY = canvasHeight / 2;
+
+  // The visual radius of the scene in screen pixels
+  const visualRadius = boundaryRadius * zoom;
+
+  // Limit panning so the scene cannot be dragged away indefinitely.
+  // At zoom=1, maxDistance from center ensures the arena remains largely in view.
+  // At higher zoom, maxDistance expands to allow inspecting edge nodes.
+  const maxDistanceX = Math.max(canvasWidth * 0.45, visualRadius * 0.75);
+  const maxDistanceY = Math.max(canvasHeight * 0.45, visualRadius * 0.75);
+
+  const minX = centerX - maxDistanceX;
+  const maxX = centerX + maxDistanceX;
+  const minY = centerY - maxDistanceY;
+  const maxY = centerY + maxDistanceY;
+
+  return {
+    x: Math.min(maxX, Math.max(minX, pan.x)),
+    y: Math.min(maxY, Math.max(minY, pan.y)),
+  };
+}
+
 export function OrganicGraph2D() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -186,6 +218,8 @@ export function OrganicGraph2D() {
   const prevFocusIdRef = useRef<string | null>(null);
   const transitionRef = useRef<TransitionState | null>(null);
   const ballPositionsRef = useRef<Map<string, { x: number; y: number; radius: number }>>(new Map());
+  const boundaryRadiusRef = useRef(380);
+  const prevSizeRef = useRef({ width: 0, height: 0 });
 
   // Cosmic Dust Background Particles
   const particlesRef = useRef<Particle[]>([]);
@@ -228,6 +262,7 @@ export function OrganicGraph2D() {
   }, [graphView, childPages, subChildrenMap]);
 
   // Recenter camera and auto-fit scene boundary
+  // Recenter camera
   const resetView = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -236,6 +271,7 @@ export function OrganicGraph2D() {
     setPan({ x: width / 2, y: height / 2 });
     const fitZoom = Math.min(1.0, Math.max(0.65, (Math.min(width, height) - 50) / 1060));
     setZoom(fitZoom);
+    setZoom(1.0);
   }, []);
 
   useEffect(() => {
@@ -278,19 +314,39 @@ export function OrganicGraph2D() {
   const renderNodesRef = useRef<RenderNode[]>([]);
   const hubRef = useRef<RenderNode | null>(null);
 
-  // Resize canvas to match display size
+  // Resize canvas to match display size and adjust elements dynamically
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const updateSize = () => {
       const rect = canvas.getBoundingClientRect();
+      const width = Math.max(100, Math.round(rect.width));
+      const height = Math.max(100, Math.round(rect.height));
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(rect.width * dpr);
-      canvas.height = Math.round(rect.height * dpr);
-      if (panRef.current.x === 0 && panRef.current.y === 0) {
-        setPan({ x: rect.width / 2, y: rect.height / 2 });
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+
+      const minDim = Math.min(width, height);
+      const newBoundaryRadius = Math.max(180, Math.min(520, Math.round(minDim / 2 - 24)));
+      boundaryRadiusRef.current = newBoundaryRadius;
+
+      const prevWidth = prevSizeRef.current.width;
+      const prevHeight = prevSizeRef.current.height;
+
+      if (prevWidth === 0 && prevHeight === 0) {
+        setPan({ x: width / 2, y: height / 2 });
+      } else if (prevWidth !== width || prevHeight !== height) {
+        // When window or split pane resizes, shift pan to follow viewport center
+        const deltaX = (width - prevWidth) / 2;
+        const deltaY = (height - prevHeight) / 2;
+        setPan((prevPan) => {
+          const nextPan = { x: prevPan.x + deltaX, y: prevPan.y + deltaY };
+          return clampPan(nextPan, zoomRef.current, width, height, newBoundaryRadius);
+        });
       }
+
+      prevSizeRef.current = { width, height };
     };
 
     updateSize();
@@ -320,6 +376,13 @@ export function OrganicGraph2D() {
         orbitAngleRef.current += 0.0016;
       }
 
+      const minDim = Math.min(width, height);
+      const baseDim = 850;
+      const responsiveScale = Math.max(0.55, Math.min(1.3, minDim / baseDim));
+
+      const boundaryRadius = Math.max(180, Math.min(520, Math.round(minDim / 2 - 24)));
+      boundaryRadiusRef.current = boundaryRadius;
+
       // Check transition progress
       const trans = transitionRef.current;
       let transitionProgress = 1.0;
@@ -332,6 +395,13 @@ export function OrganicGraph2D() {
           const panE = easeInOutCubic(transitionProgress);
           panRef.current.x = trans.panStart.x + (trans.panEnd.x - trans.panStart.x) * panE;
           panRef.current.y = trans.panStart.y + (trans.panEnd.y - trans.panStart.y) * panE;
+          const rawInterp = {
+            x: trans.panStart.x + (trans.panEnd.x - trans.panStart.x) * panE,
+            y: trans.panStart.y + (trans.panEnd.y - trans.panStart.y) * panE,
+          };
+          const clamped = clampPan(rawInterp, zoomRef.current, width, height, boundaryRadius);
+          panRef.current.x = clamped.x;
+          panRef.current.y = clamped.y;
         }
 
         if (transitionProgress >= 1.0) {
@@ -354,7 +424,6 @@ export function OrganicGraph2D() {
       const isScanning = scanStatusRef.current === "scanning";
       const scannedCount = progressRef.current?.scannedCount || 0;
       const currentScanPath = progressRef.current?.currentPath || "";
-      const boundaryRadius = 490;
 
       // 1. Draw Sci-Fi Scene Boundary, Arena Floor, Radar Sweeps & Perimeter
       drawSceneBoundary(
@@ -364,11 +433,11 @@ export function OrganicGraph2D() {
         isScanning,
         scannedCount,
         currentScanPath,
-        graphView?.focus.name || activeDrive || "C:"
+        graphView?.focus.name || activeDrive || "C:",
       );
 
       // 2. Cosmic Stardust Particles
-      drawCosmicDust(ctx, particlesRef.current, time);
+      drawCosmicDust(ctx, particlesRef.current, time, Math.max(boundaryRadius * 1.5, 700));
 
       // Prepare target nodes data
       if (graphView?.focus) {
@@ -378,7 +447,7 @@ export function OrganicGraph2D() {
         const isRoot = isDriveRoot(graphView.focus.path);
 
         const hubFill = isRoot && used > 0 ? used : 0.79;
-        const targetHubRadius = 92;
+        const targetHubRadius = Math.max(45, Math.min(100, Math.round(88 * responsiveScale)));
         const hubTheme = getNodeVisualTheme(graphView.focus, 0, true);
 
         // Update animated growth state for Hub (spring radius & liquid filling)
@@ -411,18 +480,21 @@ export function OrganicGraph2D() {
         const maxChildSize = rawChildren.reduce((max, c) => Math.max(max, c.sizeBytes), 1);
         const childCount = rawChildren.length;
 
-        // Orbital radius
-        const orbitRadius = childCount > 8 ? 295 : 255;
+        // Orbital radius scales with boundary radius to fit all screen sizes
+        const orbitRadius = Math.round(boundaryRadius * (childCount > 8 ? 0.62 : 0.56));
 
         // Concentric Orbital Track Rings
         drawOrbitalTracks(ctx, orbitRadius);
+
+        const minChildRadius = Math.round(22 * responsiveScale);
+        const maxChildBonus = Math.round(26 * responsiveScale);
 
         const childNodes: RenderNode[] = rawChildren.map((child, idx) => {
           const baseAngle = (idx / childCount) * Math.PI * 2 - Math.PI / 2;
           const currentAngle = baseAngle + orbitAngleRef.current;
 
           const sizeRatio = Math.max(0, child.sizeBytes) / maxChildSize;
-          const targetChildRadius = 32 + 28 * Math.pow(sizeRatio, 0.42);
+          const targetChildRadius = minChildRadius + maxChildBonus * Math.pow(sizeRatio, 0.42);
 
           const x = Math.cos(currentAngle) * orbitRadius;
           const y = Math.sin(currentAngle) * orbitRadius;
@@ -445,14 +517,17 @@ export function OrganicGraph2D() {
           const maxSubSize = subNodes.reduce((m, s) => Math.max(m, s.sizeBytes), 1);
 
           const satSpread = Math.PI * 0.48;
+          const satSpacingBase = Math.round((20 + (idx % 2 === 0 ? 6 : 14)) * responsiveScale);
           const satellites: SatelliteNode[] = subNodes.map((sub, sIdx) => {
             const span = Math.max(subNodes.length - 1, 1);
             const subAngleOffset = (sIdx / span - 0.5) * satSpread;
             const satAngle = currentAngle + subAngleOffset;
-            const satDist = childAnim.radius + 28 + (sIdx % 2 === 0 ? 10 : 20);
+            const satDist = childAnim.radius + satSpacingBase + (sIdx % 2 === 0 ? 6 : 14) * responsiveScale;
 
             const satRatio = Math.max(0, sub.sizeBytes) / maxSubSize;
-            const targetSatRadius = 12 + 9 * Math.pow(satRatio, 0.5);
+            const minSatRadius = Math.round(8 * responsiveScale);
+            const maxSatBonus = Math.round(8 * responsiveScale);
+            const targetSatRadius = minSatRadius + maxSatBonus * Math.pow(satRatio, 0.5);
             const targetSatFill = 0.2 + 0.65 * satRatio;
 
             // Update animated state for satellite ball
@@ -851,10 +926,18 @@ export function OrganicGraph2D() {
       if (Math.hypot(dx, dy) > 4) {
         hasMovedRef.current = true;
       }
-      setPan({
+      const rawPan = {
         x: dragStartRef.current.panX + dx,
         y: dragStartRef.current.panY + dy,
-      });
+      };
+      const clamped = clampPan(
+        rawPan,
+        zoomRef.current,
+        canvas.clientWidth,
+        canvas.clientHeight,
+        boundaryRadiusRef.current
+      );
+      setPan(clamped);
       return;
     }
 
@@ -1039,8 +1122,16 @@ export function OrganicGraph2D() {
     const newPanX = mouseX - (mouseX - panRef.current.x) * (newZoom / currentZoom);
     const newPanY = mouseY - (mouseY - panRef.current.y) * (newZoom / currentZoom);
 
+    const clampedPan = clampPan(
+      { x: newPanX, y: newPanY },
+      newZoom,
+      canvas.clientWidth,
+      canvas.clientHeight,
+      boundaryRadiusRef.current
+    );
+
     setZoom(newZoom);
-    setPan({ x: newPanX, y: newPanY });
+    setPan(clampedPan);
   };
 
   return (
@@ -1074,6 +1165,7 @@ function drawSceneBoundary(
   ctx.save();
 
   // 1. Chamber Floor Atmosphere
+  // 1. Chamber Floor Atmosphere - smooth dark circular backdrop
   const floorGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, boundaryRadius);
   floorGrad.addColorStop(0, "rgba(13, 27, 56, 0.45)");
   floorGrad.addColorStop(0.55, "rgba(9, 17, 34, 0.70)");
@@ -1086,13 +1178,16 @@ function drawSceneBoundary(
   ctx.fill();
 
   // 2. Contained Matrix Grid with radial soft mask
+  // 2. Subtle Arena Grid (Clean & faint, no radar range rings, crosshairs, or sweep cones)
   ctx.save();
   ctx.beginPath();
   ctx.arc(0, 0, boundaryRadius - 2, 0, Math.PI * 2);
   ctx.clip(); // Keep grid cleanly inside boundary!
+  ctx.clip(); // Keep grid cleanly inside boundary
 
   const gridSize = 65;
   ctx.strokeStyle = "rgba(14, 165, 233, 0.07)";
+  ctx.strokeStyle = "rgba(14, 165, 233, 0.05)";
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let x = -boundaryRadius; x <= boundaryRadius; x += gridSize) {
@@ -1193,20 +1288,28 @@ function drawSceneBoundary(
   // 4. Perimeter Boundary Rings
   // Outer Neon Shield Ring
   ctx.save();
+  // 3. Perimeter Boundary Ring - clean glowing circular edge
   ctx.beginPath();
   ctx.arc(0, 0, boundaryRadius, 0, Math.PI * 2);
   ctx.strokeStyle = isScanning ? "rgba(0, 240, 255, 0.55)" : "rgba(0, 240, 255, 0.32)";
   ctx.lineWidth = 2.2;
+  ctx.strokeStyle = isScanning ? "rgba(0, 240, 255, 0.45)" : "rgba(0, 240, 255, 0.22)";
+  ctx.lineWidth = 1.8;
   ctx.shadowColor = "#00F0FF";
   ctx.shadowBlur = isScanning ? 18 : 12;
+  ctx.shadowBlur = isScanning ? 14 : 8;
   ctx.stroke();
 
   // Secondary dashed ring
+  // Secondary faint concentric ring
   ctx.setLineDash([4, 8]);
   ctx.beginPath();
   ctx.arc(0, 0, boundaryRadius - 12, 0, Math.PI * 2);
   ctx.strokeStyle = "rgba(0, 240, 255, 0.16)";
   ctx.lineWidth = 1.2;
+  ctx.arc(0, 0, boundaryRadius - 8, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(0, 240, 255, 0.10)";
+  ctx.lineWidth = 1;
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.restore();
@@ -1329,10 +1432,13 @@ function drawSceneBoundary(
 function drawOrbitalTracks(ctx: CanvasRenderingContext2D, orbitRadius: number) {
   ctx.save();
   ctx.setLineDash([4, 10]);
+  ctx.setLineDash([4, 8]);
   ctx.lineWidth = 1.2;
 
   // Inner faint orbit
   ctx.strokeStyle = "rgba(0, 240, 255, 0.12)";
+  // Single clean orbit track where child nodes travel
+  ctx.strokeStyle = "rgba(0, 240, 255, 0.16)";
   ctx.beginPath();
   ctx.arc(0, 0, orbitRadius * 0.72, 0, Math.PI * 2);
   ctx.stroke();
@@ -1352,15 +1458,15 @@ function drawOrbitalTracks(ctx: CanvasRenderingContext2D, orbitRadius: number) {
   ctx.restore();
 }
 
-function drawCosmicDust(ctx: CanvasRenderingContext2D, particles: Particle[], time: number) {
+function drawCosmicDust(ctx: CanvasRenderingContext2D, particles: Particle[], time: number, extent = 900) {
   ctx.save();
   for (const p of particles) {
     p.x += p.vx;
     p.y += p.vy;
-    if (p.x < -900) p.x = 900;
-    if (p.x > 900) p.x = -900;
-    if (p.y < -900) p.y = 900;
-    if (p.y > 900) p.y = -900;
+    if (p.x < -extent) p.x = extent;
+    if (p.x > extent) p.x = -extent;
+    if (p.y < -extent) p.y = extent;
+    if (p.y > extent) p.y = -extent;
 
     const flicker = Math.sin(time * 2 + p.x) * 0.15;
     ctx.fillStyle = `rgba(56, 189, 248, ${Math.max(0.08, p.baseAlpha + flicker)})`;
@@ -1628,13 +1734,16 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
   // Inside-liquid percentage badge
   if (!isSatellite && percentFormatted && clampedFill > 0.25 && r > 16) {
     ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-    ctx.font = isHub ? "bold 13px system-ui, sans-serif" : "bold 11px system-ui, sans-serif";
+    const pctFontSize = isHub
+      ? Math.max(10, Math.round(13 * (r / 88)))
+      : Math.max(8, Math.round(11 * (r / 45)));
+    ctx.font = `bold ${pctFontSize}px system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
     ctx.shadowBlur = 4;
-    const textY = isHub ? waterLevel + 28 : waterLevel + 16;
-    if (textY < y + r - 10) {
+    const textY = isHub ? waterLevel + Math.round(r * 0.3) : waterLevel + Math.round(r * 0.35);
+    if (textY < y + r - 8) {
       ctx.fillText(percentFormatted, x, textY);
     }
   }
@@ -1696,20 +1805,25 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    ctx.font = "20px system-ui, sans-serif";
-    ctx.fillText("📁", x, y - 24);
+    const hubScale = Math.max(0.55, Math.min(1.25, r / 88));
+    const iconFontSize = Math.max(12, Math.round(20 * hubScale));
+    const nameFontSize = Math.max(12, Math.round(21 * hubScale));
+    const sizeFontSize = Math.max(9, Math.round(12 * hubScale));
+
+    ctx.font = `${iconFontSize}px system-ui, sans-serif`;
+    ctx.fillText("📁", x, y - r * 0.28);
 
     ctx.fillStyle = "#FFFFFF";
-    ctx.font = "bold 22px system-ui, sans-serif";
+    ctx.font = `bold ${nameFontSize}px system-ui, sans-serif`;
     ctx.shadowColor = "rgba(0, 240, 255, 0.8)";
     ctx.shadowBlur = 8;
-    ctx.fillText(name || "C:", x, y + 2);
+    ctx.fillText(name || "C:", x, y + r * 0.02);
 
     if (sizeFormatted) {
       ctx.fillStyle = "rgba(224, 242, 254, 0.9)";
-      ctx.font = "12px system-ui, sans-serif";
+      ctx.font = `${sizeFontSize}px system-ui, sans-serif`;
       ctx.shadowBlur = 4;
-      ctx.fillText(sizeFormatted, x, y + 22);
+      ctx.fillText(sizeFormatted, x, y + r * 0.26);
     }
     ctx.restore();
   }
@@ -1719,9 +1833,13 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
     ctx.save();
     ctx.textAlign = "center";
 
+    const childScale = Math.max(0.65, Math.min(1.3, r / 45));
+    const sizeFontSize = Math.max(9, Math.round(11 * childScale));
+    const nameFontSize = Math.max(10, Math.round(12 * childScale));
+
     if (sizeFormatted) {
-      ctx.font = "bold 11px system-ui, sans-serif";
-      const pillY = y - r - 12;
+      ctx.font = `bold ${sizeFontSize}px system-ui, sans-serif`;
+      const pillY = y - r - Math.max(8, Math.round(12 * childScale));
       ctx.fillStyle = "rgba(226, 232, 240, 0.95)";
       ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
       ctx.shadowBlur = 4;
@@ -1729,8 +1847,8 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
     }
 
     if (name) {
-      const nameY = y + r + 18;
-      ctx.font = "500 12px system-ui, sans-serif";
+      const nameY = y + r + Math.max(12, Math.round(18 * childScale));
+      ctx.font = `500 ${nameFontSize}px system-ui, sans-serif`;
       ctx.fillStyle = isSelected ? "#38BDF8" : isHovered ? "#FFFFFF" : "#E2E8F0";
       ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
       ctx.shadowBlur = 5;
@@ -1746,11 +1864,14 @@ function drawLiquidBall(ctx: CanvasRenderingContext2D, opts: LiquidBallDrawOptio
   if (isSatellite && sizeFormatted) {
     ctx.save();
     ctx.font = "9px system-ui, sans-serif";
+    const satScale = Math.max(0.65, Math.min(1.2, r / 14));
+    const satFontSize = Math.max(8, Math.round(9 * satScale));
+    ctx.font = `${satFontSize}px system-ui, sans-serif`;
     ctx.fillStyle = "rgba(203, 213, 225, 0.85)";
     ctx.textAlign = "center";
     ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
     ctx.shadowBlur = 4;
-    ctx.fillText(sizeFormatted, x, y - r - 6);
+    ctx.fillText(sizeFormatted, x, y - r - Math.max(4, Math.round(6 * satScale)));
     ctx.restore();
   }
 
