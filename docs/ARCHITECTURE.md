@@ -62,7 +62,7 @@ Rust is authoritative for paging and the graph cap. Do not re-implement the cap 
 - Sphere geometry and the glass `MeshPhysicalMaterial` are allocated once per graph mount and passed down. Liquid `ShaderMaterial`s are per sphere because their uniforms differ. Meshes that share geometry use `dispose={null}` so one unmount does not free the shared GPU buffer.
 - `d3-force-3d` runs when the graph payload changes, not every frame. `useFrame` only lerps meshes toward those targets.
 - Category colors: folders cyan `#00F0FF` → `#0066FF`, media `#FF007A` → `#7928CA`, code/archives/binaries `#00FF87` → `#00B4DB`, files over 5 GiB `#FFC837` → `#FF8008`.
-- Shared chrome lives in `src/index.css` (page background `#0b0f17`, text `#e2e8f0`). Scrollbars are one global rule there: 8px, transparent track, slate-600 thumb (`#475569`), slate-400 on hover (`#94a3b8`). Every overflow surface uses it. Do not restyle a panel's scrollbar on its own.
+- Shared chrome lives in `src/index.css` (page background `#0b0f17`, text `#e2e8f0`). Scrollbars are one global rule there: 8px, transparent track, slate-600 thumb (`#475569`), slate-400 on hover (`#94a3b8`). Firefox gets that through `scrollbar-width` / `scrollbar-color` only; Chromium, including the Tauri webview, uses the `::-webkit-scrollbar` rules in the same file. Every overflow surface uses it. Do not restyle a panel's scrollbar on its own.
 
 ## Where new code goes
 
