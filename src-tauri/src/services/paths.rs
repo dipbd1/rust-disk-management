@@ -56,6 +56,7 @@ pub fn is_drive_root(path: &str) -> bool {
     bytes.len() == 3 && is_drive_spec(&normalized[..2]) && bytes[2] == b'\\'
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn parent_path(path: &str) -> Option<String> {
     let path = normalize_path(path);
     if path.is_empty() || is_drive_root(&path) {
@@ -80,15 +81,50 @@ pub fn parent_path(path: &str) -> Option<String> {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn file_name(path: &str) -> String {
-    let path = normalize_path(path);
-    if is_drive_root(&path) {
-        return path[..2].to_string();
+    ready_file_name(&normalize_path(path)).to_string()
+}
+
+/// File name of a path that `normalize_path` already produced.
+pub fn ready_file_name(path: &str) -> &str {
+    if is_ready_drive_root(path) {
+        return &path[..2];
     }
-    match path.rsplit('\\').next() {
-        Some(name) => name.to_string(),
+    match path.rfind('\\') {
+        Some(idx) => &path[idx + 1..],
         None => path,
     }
+}
+
+/// Parent of a path that `normalize_path` already produced.
+/// `C:\Windows` yields `C:\`, which is a subslice of the same string.
+pub fn ready_parent(path: &str) -> Option<&str> {
+    if is_ready_drive_root(path) {
+        return None;
+    }
+    let idx = path.rfind('\\')?;
+    if idx == 2 && path.as_bytes().get(1) == Some(&b':') {
+        return Some(&path[..=idx]);
+    }
+    if idx == 0 {
+        return None;
+    }
+    Some(&path[..idx])
+}
+
+/// `C:\` becomes `\\.\C:`, the path `Volume::new` opens. No trailing slash.
+pub fn ntfs_device_path(root: &str) -> Option<String> {
+    let root = normalize_path(root);
+    if !is_drive_root(&root) {
+        return None;
+    }
+    Some(format!("\\\\.\\{}", &root[..2]))
+}
+
+fn is_ready_drive_root(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    bytes.len() == 3 && is_drive_spec(&path[..2]) && bytes[2] == b'\\'
 }
 
 pub fn is_reparse_point(meta: &std::fs::Metadata) -> bool {
@@ -138,5 +174,12 @@ mod tests {
         assert!(!is_drive_root("C:\\Users"));
         assert_eq!(file_name("C:\\"), "C:");
         assert_eq!(file_name("C:\\Users\\clip.mp4"), "clip.mp4");
+        assert_eq!(ready_file_name("C:\\"), "C:");
+        assert_eq!(ready_file_name("C:\\Users\\clip.mp4"), "clip.mp4");
+        assert_eq!(ready_parent("C:\\Windows"), Some("C:\\"));
+        assert_eq!(ready_parent("C:\\Windows\\System32"), Some("C:\\Windows"));
+        assert_eq!(ready_parent("C:\\"), None);
+        assert_eq!(ntfs_device_path("c:/"), Some("\\\\.\\C:".to_string()));
+        assert_eq!(ntfs_device_path("C:\\Users"), None);
     }
 }

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::error::AppError;
 use crate::models::{FileCategory, NodeKind};
 use crate::services::category::classify;
-use crate::services::paths::{file_name, normalize_path, parent_path};
+use crate::services::paths::{normalize_path, ready_file_name, ready_parent};
 
 mod view;
 
@@ -51,9 +51,20 @@ impl ScanIndex {
             .map(|id| self.nodes[id.0 as usize].size_bytes)
     }
 
+    pub fn reserve(&mut self, extra: usize) {
+        self.nodes.reserve(extra);
+        self.by_path.reserve(extra);
+    }
+
     /// Parents must already exist, except the first node, which becomes the root.
+    /// The scanner uses [`Self::insert_ready`] so this stays for callers that still have a raw path.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn insert(&mut self, path: &str, is_dir: bool, size_bytes: u64) -> Result<(), AppError> {
-        let path = normalize_path(path);
+        self.insert_ready(normalize_path(path), is_dir, size_bytes)
+    }
+
+    /// Insert a path that is already normalized. Does not parse it again.
+    pub fn insert_ready(&mut self, path: String, is_dir: bool, size_bytes: u64) -> Result<(), AppError> {
         if path.is_empty() {
             return Err(AppError::Scan("empty path".into()));
         }
@@ -61,11 +72,11 @@ impl ScanIndex {
             return Ok(());
         }
         let id = self.alloc_id()?;
-        let name = file_name(&path);
+        let name = ready_file_name(&path).to_string();
         let parent = if self.root.is_none() {
             None
         } else {
-            parent_path(&path).and_then(|parent| self.by_path.get(&parent).copied())
+            ready_parent(&path).and_then(|parent| self.by_path.get(parent).copied())
         };
         self.nodes.push(NodeRecord {
             name: name.clone(),

@@ -42,6 +42,8 @@ pub fn run() {
             commands::fs_ops_cmd::reveal_in_explorer,
             commands::fs_ops_cmd::copy_path,
             commands::fs_ops_cmd::watch_path,
+            commands::elevation_cmd::elevation_status,
+            commands::elevation_cmd::relaunch_elevated,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

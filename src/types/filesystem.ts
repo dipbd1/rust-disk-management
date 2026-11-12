@@ -25,6 +25,11 @@ export interface FileNode {
   percentOfParent: number;
 }
 
+export interface SatellitePreview {
+  parentPath: string;
+  nodes: FileNode[];
+}
+
 export interface ScanProgress {
   generation: number;
   scannedCount: number;
@@ -33,6 +38,7 @@ export interface ScanProgress {
   accessDeniedCount: number;
   root: FileNode | null;
   topLevel: FileNode[];
+  satellites?: SatellitePreview[];
   done: boolean;
   cancelled: boolean;
 }
@@ -54,4 +60,9 @@ export interface DeleteResult {
   freedBytes: number;
   removedPath: string;
   ancestors: FileNode[];
+}
+
+export interface ElevationStatus {
+  elevated: boolean;
+  ntfsPresent: boolean;
 }

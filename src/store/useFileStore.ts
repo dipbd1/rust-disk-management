@@ -9,7 +9,7 @@ import {
   reveal,
 } from "./deleteActions";
 import { focusNode, loadMoreList, loadMoreTree, setQuery, toggleExpanded } from "./navActions";
-import { boot, cancelActiveScan, rescan, scanDrive } from "./scanActions";
+import { boot, cancelActiveScan, continueWithoutElevation, rescan, restartElevated, scanDrive } from "./scanActions";
 import { initialData, type FileStore } from "./types";
 
 export const useFileStore = create<FileStore>((set, get) => ({
@@ -38,4 +38,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
   confirmPermanentDelete: () => confirmPermanentDelete(set, get),
   dismissConfirm: () => set({ confirmPath: null }),
   dismissToast: () => set({ toast: null }),
+  continueWithoutElevation: (remember) => continueWithoutElevation(set, get, remember),
+  restartElevated: () => restartElevated(set, get),
 }));

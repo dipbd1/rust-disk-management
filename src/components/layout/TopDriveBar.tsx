@@ -13,6 +13,10 @@ export function TopDriveBar() {
   const stale = useFileStore((state) => state.stale);
   const cancelScan = useFileStore((state) => state.cancelScan);
   const rescan = useFileStore((state) => state.rescan);
+  const elevated = useFileStore((state) => state.elevated);
+  const elevationPrompt = useFileStore((state) => state.elevationPrompt);
+  const restartElevated = useFileStore((state) => state.restartElevated);
+  const ntfsFixed = drives.some((drive) => !drive.isRemovable && drive.fileSystem.toUpperCase() === "NTFS");
 
   const crumbs = focusedNodeId ? breadcrumbs(focusedNodeId) : [];
 
@@ -61,6 +65,11 @@ export function TopDriveBar() {
       {stale && scanStatus !== "scanning" ? (
         <button type="button" className="h-8 shrink-0 rounded-md border border-amber-300/40 px-2.5 text-xs text-amber-100 hover:bg-amber-400/10" onClick={() => void rescan()}>
           Rescan
+        </button>
+      ) : null}
+      {!elevated && !elevationPrompt && ntfsFixed ? (
+        <button type="button" className="h-8 shrink-0 rounded-md border border-cyan-300/40 px-2.5 text-xs text-cyan-100 hover:bg-cyan-400/10" onClick={() => void restartElevated()}>
+          Faster scan
         </button>
       ) : null}
     </header>

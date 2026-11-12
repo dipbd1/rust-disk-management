@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use crate::limits::{self, page_limit};
-use crate::models::{ChildrenPage, FileCategory, FileNode, GraphView, NodeKind};
+use crate::models::{ChildrenPage, FileCategory, FileNode, GraphView, NodeKind, SatellitePreview};
 use crate::services::paths::normalize_path;
 
 use super::{NodeId, ScanIndex};
@@ -88,6 +88,34 @@ impl ScanIndex {
         let ids = self.largest(root, cap);
         let top_level = ids.into_iter().map(|id| self.to_file_node(id)).collect();
         (Some(self.to_file_node(root)), top_level)
+    }
+
+    /// The 12 largest top-level folders, each with its 5 largest children.
+    pub fn satellite_groups(&self) -> Vec<SatellitePreview> {
+        let Some(root) = self.root else {
+            return Vec::new();
+        };
+        let mut folders: Vec<NodeId> = self.nodes[root.0 as usize]
+            .children
+            .iter()
+            .copied()
+            .filter(|id| self.nodes[id.0 as usize].kind == NodeKind::Folder)
+            .collect();
+        folders.sort_by(|a, b| self.cmp_desc(*a, *b));
+        folders.truncate(limits::SATELLITE_PARENTS);
+        let mut groups = Vec::new();
+        for id in folders {
+            let child_ids = self.largest(id, limits::SATELLITE_CHILDREN);
+            if child_ids.is_empty() {
+                continue;
+            }
+            let parent = &self.nodes[id.0 as usize];
+            groups.push(SatellitePreview {
+                parent_path: parent.path.clone(),
+                nodes: child_ids.into_iter().map(|cid| self.to_file_node(cid)).collect(),
+            });
+        }
+        groups
     }
 
     fn largest(&self, id: NodeId, cap: usize) -> Vec<NodeId> {
@@ -194,6 +222,17 @@ mod tests {
         assert_eq!(page.nodes[0].name, "a");
         assert_eq!(page.nodes[1].name, "b");
         assert!(page.nodes[0].size_bytes > page.nodes[1].size_bytes);
+    }
+
+    #[test]
+    fn satellite_groups_follow_the_largest_folders() {
+        let groups = sample().satellite_groups();
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0].parent_path, "C:\\data\\a");
+        assert_eq!(groups[0].nodes[0].name, "f2");
+        assert_eq!(groups[0].nodes[1].name, "f1");
+        assert_eq!(groups[1].parent_path, "C:\\data\\b");
+        assert_eq!(groups[1].nodes[0].name, "f3");
     }
 
     #[test]

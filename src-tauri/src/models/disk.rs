@@ -10,3 +10,11 @@ pub struct DriveInfo {
     pub available_bytes: u64,
     pub is_removable: bool,
 }
+
+/// Whether this process may read an NTFS volume directly, and whether that would help.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElevationStatus {
+    pub elevated: bool,
+    pub ntfs_present: bool,
+}

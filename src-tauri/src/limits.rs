@@ -4,6 +4,10 @@ pub const CHILD_PAGE_MAX: u32 = 1000;
 pub const GRAPH_CHILD_CAP: usize = 60;
 pub const PROGRESS_PREVIEW: usize = 200;
 pub const PROGRESS_INTERVAL_MS: u64 = 100;
+/// Largest top-level folders that carry moons on a progress tick.
+pub const SATELLITE_PARENTS: usize = 12;
+/// Largest direct children drawn as moons of each of those folders.
+pub const SATELLITE_CHILDREN: usize = 5;
 /// 5 GiB. Files at or above this size use the heavy category.
 pub const HEAVY_FILE_BYTES: u64 = 5 * 1024 * 1024 * 1024;
 

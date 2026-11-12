@@ -22,6 +22,8 @@ pub enum AppError {
     Reveal(String),
     #[error("watch failed: {0}")]
     Watch(String),
+    #[error("elevation failed: {0}")]
+    Elevation(String),
 }
 
 impl serde::Serialize for AppError {

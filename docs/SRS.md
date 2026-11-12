@@ -10,10 +10,11 @@ A high-performance desktop storage analyzer and file management utility for Wind
 - **FR-1.1:** On launch, the Rust backend shall query all mounted Windows volumes (Fixed NTFS, exFAT, FAT32, and removable drives) and return total capacity, available space, and mount root (`C:\`, `D:\`, etc.).
 
 #### FR-2: Multi-Threaded Directory Scanning
-- **FR-2.1:** The backend shall scan a target directory path recursively using parallel work-stealing threads (`jwalk`).
-- **FR-2.2:** Scanning must be non-blocking. Progress updates and partial tree chunks shall stream to the frontend via Tauri v2 IPC `Channel` at a throttled interval (every 100ms).
+- **FR-2.1:** An elevated scan of an NTFS drive root shall read the Master File Table. Every other scan (a folder, a non-NTFS volume, or a process that is not elevated) shall walk the tree with parallel `FindFirstFileEx` calls. File size comes from that listing. The walk does not stat each file again.
+- **FR-2.2:** Scanning must be non-blocking. Progress updates and partial tree chunks shall stream to the frontend via Tauri v2 IPC `Channel` at a throttled interval (every 100ms). While a scan is running, the graph draws the drive, up to 16 of its largest direct children, and up to five moons on each of the 12 largest of those folders. Level-1 balls keep a stable slot through the end of the scan. New moons ease out from their parent. The radar sweep, scanning label, and path ticker fade out over about 700ms when the scan ends.
 - **FR-2.3:** Users must be able to cancel an active scan immediately via an atomic cancellation token (`Arc<AtomicBool>`).
 - **FR-2.4:** The scanner shall gracefully skip Windows system-locked directories (`System Volume Information`, `$Recycle.Bin`, restricted AppData junctions) without crashing, logging them as `access_deniedCount`.
+- **FR-2.5:** On launch, if the process is not elevated and a fixed NTFS drive is present, the app shall explain that an administrator scan is faster and that a folder walk still works. The user can restart as administrator or continue. "Don't ask again" remembers the continue choice. A Faster scan action stays available afterward.
 
 #### FR-3: Left Pane — Virtualized Explorer & Context Menu
 - **FR-3.1:** The left pane shall render a collapsible folder tree capable of holding 100,000+ entries using row virtualization (`@tanstack/react-virtual`).

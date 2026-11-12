@@ -1,7 +1,7 @@
 import { Channel } from "@tauri-apps/api/core";
 import { invoke } from "tauri-remote-ui/api/core";
 import { listen } from "tauri-remote-ui/api/event";
-import type { ChildrenPage, DeleteResult, DriveInfo, GraphView, ScanProgress } from "../types/filesystem";
+import type { ChildrenPage, DeleteResult, DriveInfo, ElevationStatus, GraphView, ScanProgress } from "../types/filesystem";
 
 /** The only module that imports Tauri IPC. `Channel` stays on `@tauri-apps/api`; `invoke` and `listen` use the remote-ui shim so a browser can reach the running app. */
 export function listDrives(): Promise<DriveInfo[]> {
@@ -103,4 +103,13 @@ export function onFsStale(handler: (path: string) => void): Promise<() => void> 
   return listen<string>("fs-stale", (event) => {
     handler(event.payload);
   });
+}
+
+export function elevationStatus(): Promise<ElevationStatus> {
+  return invoke<ElevationStatus>("elevation_status");
+}
+
+/** `true` when Windows accepted the elevated process and this one is exiting. */
+export function relaunchElevated(): Promise<boolean> {
+  return invoke<boolean>("relaunch_elevated");
 }

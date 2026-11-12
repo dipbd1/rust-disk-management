@@ -1,6 +1,6 @@
 import { CHILD_PAGE_SIZE } from "../lib/limits";
 import { diskUsedRatio, errorMessage } from "../lib/format";
-import { cancelScan, getChildren, listDrives, onFsStale, startScan, watchPath } from "../services/tauriBridge";
+import { cancelScan, elevationStatus, getChildren, listDrives, onFsStale, relaunchElevated, startScan, watchPath } from "../services/tauriBridge";
 import { applyIndexPage, applyPreview, placeholderNode } from "./cache";
 import { loadGraph, refreshList } from "./navActions";
 import { session } from "./session";
@@ -9,6 +9,16 @@ import type { StoreApi } from "zustand";
 
 type SetFile = StoreApi<FileStore>["setState"];
 type GetFile = StoreApi<FileStore>["getState"];
+
+const ELEVATION_DISMISS_KEY = "lsm.skip-elevation-prompt";
+
+function elevationDismissed(): boolean {
+  try {
+    return localStorage.getItem(ELEVATION_DISMISS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 export async function boot(set: SetFile, get: GetFile): Promise<void> {
   if (session.booted) return;
@@ -19,10 +29,54 @@ export async function boot(set: SetFile, get: GetFile): Promise<void> {
     });
     const drives = await listDrives();
     set({ drives });
+    let elevated = false;
+    let ntfsPresent = false;
+    try {
+      const status = await elevationStatus();
+      elevated = status.elevated;
+      ntfsPresent = status.ntfsPresent;
+    } catch (error) {
+      set({ toast: errorMessage(error) });
+    }
+    set({ elevated });
     const fixed = drives.find((drive) => !drive.isRemovable);
-    if (fixed) await scanDrive(set, get, fixed.mount, false);
+    if (!fixed) return;
+    if (!elevated && ntfsPresent && !elevationDismissed()) {
+      set({ elevationPrompt: true, pendingMount: fixed.mount });
+      return;
+    }
+    await scanDrive(set, get, fixed.mount, false);
   } catch (error) {
     set({ toast: errorMessage(error), scanStatus: "error" });
+  }
+}
+
+export async function continueWithoutElevation(set: SetFile, get: GetFile, remember: boolean): Promise<void> {
+  if (remember) {
+    try {
+      localStorage.setItem(ELEVATION_DISMISS_KEY, "1");
+    } catch {
+      // The scan still runs if storage is blocked.
+    }
+  }
+  const mount = get().pendingMount ?? get().drives.find((drive) => !drive.isRemovable)?.mount ?? null;
+  set({ elevationPrompt: false });
+  if (mount && get().scanStatus !== "scanning") {
+    await scanDrive(set, get, mount, false);
+  }
+}
+
+export async function restartElevated(set: SetFile, get: GetFile): Promise<void> {
+  try {
+    const started = await relaunchElevated();
+    if (!started && get().elevationPrompt) {
+      await continueWithoutElevation(set, get, false);
+    }
+  } catch (error) {
+    set({ toast: errorMessage(error) });
+    if (get().elevationPrompt) {
+      await continueWithoutElevation(set, get, false);
+    }
   }
 }
 

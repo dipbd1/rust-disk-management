@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { ConfirmDelete } from "./components/explorer/ConfirmDelete";
 import { Toast } from "./components/explorer/Toast";
+import { ElevationPrompt } from "./components/layout/ElevationPrompt";
 import { SplitWorkspace } from "./components/layout/SplitWorkspace";
 import { TopDriveBar } from "./components/layout/TopDriveBar";
 import { useFileStore } from "./store/useFileStore";
@@ -33,6 +34,7 @@ export default function App() {
     <div className="flex h-full min-h-0 flex-col bg-[#0B0F17] text-slate-100">
       <TopDriveBar />
       <SplitWorkspace />
+      <ElevationPrompt />
       <ConfirmDelete />
       <Toast />
     </div>

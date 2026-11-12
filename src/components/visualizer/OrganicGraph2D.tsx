@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { diskUsedRatio, formatBytes } from "../../lib/format";
+import { SATELLITE_CHILDREN, SATELLITE_PARENTS } from "../../lib/limits";
 import { isDriveRoot } from "../../lib/paths";
 import { getNodeVisualTheme, type NodeVisualTheme } from "../../lib/nodeColors";
 import { getChildren } from "../../services/tauriBridge";
 import { useFileStore } from "../../store/useFileStore";
 import { useVisualizerStore } from "./visualizerState";
+import { claimSlot, liveScanScene, moonBirth, moonMap, moonTravel } from "./scanBalls";
 import type { FileNode, GraphView } from "../../types/filesystem";
 import type { ChildPage } from "../../store/types";
 
@@ -197,8 +199,12 @@ export function OrganicGraph2D() {
   // Dynamic animated states for balls (radius growth & liquid rising)
   const ballAnimMapRef = useRef<Map<string, BallAnimState>>(new Map());
 
-  // Cache for level-2 children (satellites)
-  const [subChildrenMap, setSubChildrenMap] = useState<Record<string, FileNode[]>>({});
+  // Level-2 moons. A ref so filling it does not restart the frame loop.
+  const moonRef = useRef<Record<string, FileNode[]>>({});
+  const moonBornRef = useRef<Map<string, number>>(new Map());
+  const slotFocusRef = useRef<string | null>(null);
+  const scanChromeRef = useRef({ fade: 0, count: 0, path: "" });
+  const lastFrameRef = useRef(0);
 
   // Hover state
   const [hoveredTarget, setHoveredTarget] = useState<{
@@ -218,6 +224,7 @@ export function OrganicGraph2D() {
   const prevFocusIdRef = useRef<string | null>(null);
   const transitionRef = useRef<TransitionState | null>(null);
   const ballPositionsRef = useRef<Map<string, { x: number; y: number; radius: number }>>(new Map());
+  const slotAnglesRef = useRef<Map<string, number>>(new Map());
   const boundaryRadiusRef = useRef(380);
   const prevSizeRef = useRef({ width: 0, height: 0 });
 
@@ -237,29 +244,29 @@ export function OrganicGraph2D() {
     }
   }
 
-  // Pre-fetch Level-2 children (satellites) for direct child folders
+  // Refresh moons for the settled graph. Parents already filled from scan progress are left alone.
   useEffect(() => {
     if (!graphView?.children) return;
     const foldersToFetch = graphView.children
       .filter((c) => c.kind === "folder" && c.childCount > 0)
-      .slice(0, 12);
+      .slice(0, SATELLITE_PARENTS);
 
     for (const folder of foldersToFetch) {
-      if (subChildrenMap[folder.path]) continue;
+      if (moonRef.current[folder.path]?.length) continue;
       const existingPage = childPages[folder.path];
       if (existingPage && existingPage.nodes.length > 0) {
-        setSubChildrenMap((prev) => ({ ...prev, [folder.path]: existingPage.nodes.slice(0, 5) }));
+        moonRef.current[folder.path] = existingPage.nodes.slice(0, SATELLITE_CHILDREN);
         continue;
       }
-      void getChildren(folder.path, 0, 5, null)
+      void getChildren(folder.path, 0, SATELLITE_CHILDREN, null)
         .then((page) => {
-          if (page && page.nodes.length > 0) {
-            setSubChildrenMap((prev) => ({ ...prev, [folder.path]: page.nodes.slice(0, 5) }));
+          if (page && page.nodes.length > 0 && !moonRef.current[folder.path]?.length) {
+            moonRef.current[folder.path] = page.nodes.slice(0, SATELLITE_CHILDREN);
           }
         })
         .catch(() => {});
     }
-  }, [graphView, childPages, subChildrenMap]);
+  }, [graphView, childPages]);
 
   // Recenter camera and auto-fit scene boundary
   // Recenter camera
@@ -424,44 +431,76 @@ export function OrganicGraph2D() {
       const isScanning = scanStatusRef.current === "scanning";
       const scannedCount = progressRef.current?.scannedCount || 0;
       const currentScanPath = progressRef.current?.currentPath || "";
+      const frameNow = performance.now();
+      const frameDt = lastFrameRef.current === 0 ? 16 : Math.min(64, frameNow - lastFrameRef.current);
+      lastFrameRef.current = frameNow;
+      const chrome = scanChromeRef.current;
+      if (isScanning) {
+        chrome.fade = 1;
+        chrome.count = scannedCount;
+        chrome.path = currentScanPath;
+      } else if (chrome.fade > 0) {
+        chrome.fade = Math.max(0, chrome.fade - frameDt / 700);
+      }
+      const placeholder = (() => {
+        const state = useFileStore.getState();
+        return state.rootId ? state.nodes[state.rootId] ?? null : null;
+      })();
+      const liveScene = !graphView?.focus
+        ? liveScanScene(progressRef.current, isScanning ? placeholder : null)
+        : null;
+      const sceneFocus = liveScene?.focus ?? graphView?.focus ?? null;
+      const sceneChildren = liveScene?.children ?? graphView?.children ?? [];
+      if (sceneFocus && slotFocusRef.current !== sceneFocus.id) {
+        if (slotFocusRef.current) {
+          slotAnglesRef.current.clear();
+          moonBornRef.current.clear();
+        }
+        slotFocusRef.current = sceneFocus.id;
+      }
+      const progressRoot = progressRef.current?.root?.path;
+      if (progressRoot && sceneFocus?.path === progressRoot) {
+        const incoming = moonMap(progressRef.current?.satellites);
+        for (const path of Object.keys(incoming)) moonRef.current[path] = incoming[path];
+      }
 
       // 1. Draw Sci-Fi Scene Boundary, Arena Floor, Radar Sweeps & Perimeter
       drawSceneBoundary(
         ctx,
         boundaryRadius,
         time,
-        isScanning,
-        scannedCount,
-        currentScanPath,
-        graphView?.focus.name || activeDrive || "C:",
+        chrome.fade,
+        chrome.count,
+        chrome.path,
+        sceneFocus?.name || activeDrive || "C:",
       );
 
       // 2. Cosmic Stardust Particles
       drawCosmicDust(ctx, particlesRef.current, time, Math.max(boundaryRadius * 1.5, 700));
 
       // Prepare target nodes data
-      if (graphView?.focus) {
+      if (sceneFocus) {
         const animMap = ballAnimMapRef.current;
         const drive = drives.find((item) => item.mount === activeDrive);
         const used = diskUsedRatio(drive);
-        const isRoot = isDriveRoot(graphView.focus.path);
+        const isRoot = isDriveRoot(sceneFocus.path);
 
         const hubFill = isRoot && used > 0 ? used : 0.79;
         const targetHubRadius = Math.max(45, Math.min(100, Math.round(88 * responsiveScale)));
-        const hubTheme = getNodeVisualTheme(graphView.focus, 0, true);
+        const hubTheme = getNodeVisualTheme(sceneFocus, 0, true);
 
         // Update animated growth state for Hub (spring radius & liquid filling)
         const hubAnim = updateBallAnim(
           animMap,
-          `hub:${graphView.focus.id}`,
+          `hub:${sceneFocus.id}`,
           targetHubRadius + (isScanning ? Math.sin(time * 5) * 2.5 : 0),
           hubFill,
-          graphView.focus.sizeBytes,
+          sceneFocus.sizeBytes,
           isScanning
         );
 
         const hubNode: RenderNode = {
-          node: graphView.focus,
+          node: sceneFocus,
           x: 0,
           y: 0,
           radius: hubAnim.radius,
@@ -476,7 +515,7 @@ export function OrganicGraph2D() {
         hubRef.current = hubNode;
 
         // Level 1 Children
-        const rawChildren = graphView.children.slice(0, 16);
+        const rawChildren = sceneChildren.slice(0, 16);
         const maxChildSize = rawChildren.reduce((max, c) => Math.max(max, c.sizeBytes), 1);
         const childCount = rawChildren.length;
 
@@ -489,8 +528,9 @@ export function OrganicGraph2D() {
         const minChildRadius = Math.round(22 * responsiveScale);
         const maxChildBonus = Math.round(26 * responsiveScale);
 
+        const childPaths = rawChildren.map((item) => item.path);
         const childNodes: RenderNode[] = rawChildren.map((child, idx) => {
-          const baseAngle = (idx / childCount) * Math.PI * 2 - Math.PI / 2;
+          const baseAngle = claimSlot(slotAnglesRef.current, child.path, childPaths);
           const currentAngle = baseAngle + orbitAngleRef.current;
 
           const sizeRatio = Math.max(0, child.sizeBytes) / maxChildSize;
@@ -513,16 +553,20 @@ export function OrganicGraph2D() {
           );
 
           // Level 2 Satellites for this child
-          const subNodes = subChildrenMap[child.path] || [];
+          const subNodes = moonRef.current[child.path] ?? [];
           const maxSubSize = subNodes.reduce((m, s) => Math.max(m, s.sizeBytes), 1);
 
           const satSpread = Math.PI * 0.48;
           const satSpacingBase = Math.round((20 + (idx % 2 === 0 ? 6 : 14)) * responsiveScale);
-          const satellites: SatelliteNode[] = subNodes.map((sub, sIdx) => {
+          const satellites: SatelliteNode[] = [];
+          subNodes.forEach((sub, sIdx) => {
+            const bornAt = moonBirth(moonBornRef.current, sub.path, sIdx, frameNow);
+            const travel = moonTravel(bornAt, frameNow);
+            if (travel <= 0) return;
             const span = Math.max(subNodes.length - 1, 1);
             const subAngleOffset = (sIdx / span - 0.5) * satSpread;
             const satAngle = currentAngle + subAngleOffset;
-            const satDist = childAnim.radius + satSpacingBase + (sIdx % 2 === 0 ? 6 : 14) * responsiveScale;
+            const satDist = (childAnim.radius + satSpacingBase + (sIdx % 2 === 0 ? 6 : 14) * responsiveScale) * travel;
 
             const satRatio = Math.max(0, sub.sizeBytes) / maxSubSize;
             const minSatRadius = Math.round(8 * responsiveScale);
@@ -530,7 +574,6 @@ export function OrganicGraph2D() {
             const targetSatRadius = minSatRadius + maxSatBonus * Math.pow(satRatio, 0.5);
             const targetSatFill = 0.2 + 0.65 * satRatio;
 
-            // Update animated state for satellite ball
             const satAnim = updateBallAnim(
               animMap,
               sub.path,
@@ -540,15 +583,15 @@ export function OrganicGraph2D() {
               isScanning
             );
 
-            return {
+            satellites.push({
               node: sub,
               parentPath: child.path,
               x: x + Math.cos(satAngle) * satDist,
               y: y + Math.sin(satAngle) * satDist,
-              radius: satAnim.radius,
+              radius: satAnim.radius * Math.min(1, travel),
               fill: satAnim.fill,
               theme: getNodeVisualTheme(sub, sIdx),
-            };
+            });
           });
 
           return {
@@ -569,7 +612,7 @@ export function OrganicGraph2D() {
         // Periodic cleanup of ballAnimMapRef to prevent unbounded growth
         if (animMap.size > 260) {
           const activeKeys = new Set<string>();
-          activeKeys.add(`hub:${graphView.focus.id}`);
+          activeKeys.add(`hub:${sceneFocus.id}`);
           for (const c of childNodes) {
             activeKeys.add(c.node.path);
             for (const s of c.satellites) {
@@ -892,7 +935,7 @@ export function OrganicGraph2D() {
 
       // 8. Render Holographic Hover Tooltip if hovering over any node
       if (hoveredTarget) {
-        drawTooltip(ctx, hoveredTarget, panRef.current, zoomRef.current, subChildrenMap, childPages, graphView);
+        drawTooltip(ctx, hoveredTarget, panRef.current, zoomRef.current, moonRef.current, childPages, graphView);
       }
 
       ctx.restore(); // Restore DPR scale
@@ -901,7 +944,7 @@ export function OrganicGraph2D() {
 
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [graphView, drives, activeDrive, selectedNodeId, drainingId, autoOrbit, categoryFilter, hoveredTarget, subChildrenMap]);
+  }, [graphView, drives, activeDrive, selectedNodeId, drainingId, autoOrbit, categoryFilter, hoveredTarget]);
 
   // Pointer Interaction Handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1061,8 +1104,7 @@ export function OrganicGraph2D() {
 
       if (clickedNode) {
         selectNode(clickedNode.id);
-        // When a folder ball is selected, initiate smooth transition to bring it to center!
-        if (clickedNode.kind === "folder") {
+        if (clickedNode.kind === "folder" && scanStatusRef.current !== "scanning") {
           void focusNode(clickedNode.id);
         }
       }
@@ -1100,7 +1142,7 @@ export function OrganicGraph2D() {
       }
     }
 
-    if (targetFolder) {
+    if (targetFolder && scanStatusRef.current !== "scanning") {
       void focusNode(targetFolder.id);
     }
   };
@@ -1157,11 +1199,12 @@ function drawSceneBoundary(
   ctx: CanvasRenderingContext2D,
   boundaryRadius: number,
   time: number,
-  isScanning: boolean,
+  scanFade: number,
   scannedCount: number,
   currentPath: string,
   focusName: string,
 ) {
+  const isScanning = scanFade > 0.02;
   ctx.save();
 
   // 1. Chamber Floor Atmosphere
@@ -1238,8 +1281,10 @@ function drawSceneBoundary(
   }
   ctx.setLineDash([]);
 
-  // 3. Sonar Radar Pulse Waves (When Scanning)
-  if (isScanning) {
+  // 3. Sonar Radar Pulse Waves. Fades out for about 700ms after the scan ends.
+  if (scanFade > 0.02) {
+    ctx.save();
+    ctx.globalAlpha = scanFade;
     // Sonar ripples
     for (let i = 0; i < 3; i++) {
       const pulseT = (time * 0.4 + i * 0.33) % 1;
@@ -1280,6 +1325,7 @@ function drawSceneBoundary(
     ctx.shadowColor = "#00F0FF";
     ctx.shadowBlur = 10;
     ctx.stroke();
+    ctx.restore();
     ctx.restore();
   }
 
@@ -1393,15 +1439,21 @@ function drawSceneBoundary(
   ctx.stroke();
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  if (isScanning) {
+  if (scanFade > 0.02) {
+    ctx.save();
+    ctx.globalAlpha = scanFade;
     ctx.fillStyle = "#38BDF8";
     ctx.shadowColor = "#00F0FF";
     ctx.shadowBlur = 8;
     ctx.fillText(`└ ⚡ SCANNING: ${scannedCount.toLocaleString()} NODES`, -bracketOffset + 6, bracketOffset + 4);
-    ctx.shadowBlur = 0;
-  } else {
+    ctx.restore();
+  }
+  if (scanFade < 0.98) {
+    ctx.save();
+    ctx.globalAlpha = 1 - scanFade;
     ctx.fillStyle = "rgba(148, 163, 184, 0.75)";
     ctx.fillText(`└ ● STATUS: READY // MATRIX NOMINAL`, -bracketOffset + 6, bracketOffset + 4);
+    ctx.restore();
   }
 
   // Bottom-Right Bracket
@@ -1414,15 +1466,17 @@ function drawSceneBoundary(
   ctx.fillStyle = "rgba(148, 163, 184, 0.75)";
   ctx.fillText(`CONTAINMENT MATRIX ┘`, bracketOffset - 6, bracketOffset + 4);
 
-  // If scanning, show live active path ticker below
-  if (isScanning && currentPath) {
+  if (scanFade > 0.02 && currentPath) {
     const maxLen = 42;
     const displayPath = currentPath.length > maxLen ? "…" + currentPath.slice(-maxLen) : currentPath;
+    ctx.save();
+    ctx.globalAlpha = scanFade;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.font = "9px monospace";
     ctx.fillStyle = "rgba(56, 189, 248, 0.75)";
     ctx.fillText(`>> SCAN PATH: ${displayPath}`, 0, bracketOffset + 18);
+    ctx.restore();
   }
 
   ctx.restore();

@@ -178,6 +178,7 @@ mod tests {
             access_denied_count: 0,
             root: None,
             top_level: Vec::new(),
+            satellites: Vec::new(),
             done: true,
             cancelled: false,
         }

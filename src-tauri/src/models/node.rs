@@ -36,6 +36,14 @@ pub struct FileNode {
     pub percent_of_parent: f32,
 }
 
+/// Up to five largest children of one top-level folder, for the second ring.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SatellitePreview {
+    pub parent_path: String,
+    pub nodes: Vec<FileNode>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanProgress {
@@ -46,6 +54,8 @@ pub struct ScanProgress {
     pub access_denied_count: u64,
     pub root: Option<FileNode>,
     pub top_level: Vec<FileNode>,
+    #[serde(default)]
+    pub satellites: Vec<SatellitePreview>,
     pub done: bool,
     pub cancelled: bool,
 }

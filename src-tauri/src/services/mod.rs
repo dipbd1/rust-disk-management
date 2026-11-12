@@ -1,6 +1,10 @@
 pub mod category;
 pub mod drives;
+pub mod elevation;
 pub mod index;
+pub mod mft;
 pub mod paths;
+pub mod preview;
 pub mod scanner;
+pub mod walk;
 pub mod watcher;

@@ -21,7 +21,7 @@ ScanIndex (RAM)                 ← full tree stays here
 The webview never receives the whole recursive tree. It receives:
 
 - drive list
-- a progress payload every 100ms with the root plus at most 200 largest direct children
+- a progress payload every 100ms with the root, at most 200 largest direct children, and moons for the 12 largest of those folders (5 children each)
 - one page of direct children (default 400, max 1000) for a folder the user opened
 - one graph view: the focused folder, its 60 largest children, and one aggregate sphere
 
@@ -33,6 +33,8 @@ The webview never receives the whole recursive tree. It receives:
 | Child page max | `limits::CHILD_PAGE_MAX` | requested by Rust clamp | 1000 |
 | Graph children | `limits::GRAPH_CHILD_CAP` | `GRAPH_CHILD_CAP` | 60 |
 | Progress preview | `limits::PROGRESS_PREVIEW` | not sent above this | 200 |
+| Moon parents | `limits::SATELLITE_PARENTS` | `SATELLITE_PARENTS` | 12 |
+| Moons per parent | `limits::SATELLITE_CHILDREN` | `SATELLITE_CHILDREN` | 5 |
 | Progress interval | `limits::PROGRESS_INTERVAL_MS` | n/a | 100 |
 | Heavy file | `limits::HEAVY_FILE_BYTES` | `HEAVY_FILE_BYTES` | 5 GiB |
 | Sphere radius | n/a | `scale.ts` | 0.4 – 3.5 |
@@ -44,6 +46,9 @@ Rust is authoritative for paging and the graph cap. Do not re-implement the cap 
 - `ScanIndex` is an arena: `Vec<NodeRecord>` plus `HashMap` path → id. Directory sizes are the sum of file sizes bubbled to ancestors while scanning. Children are sorted once at the end.
 - IDs sent to the UI are normalized Windows paths. `normalize_path` strips `\\?\`, flips slashes, and keeps the trailing slash only for drive roots (`C:\`).
 - `start_scan` runs on `spawn_blocking`. A generation counter drops results from a scan that was replaced. Cancel is `Arc<AtomicBool>` with relaxed ordering.
+- An elevated NTFS drive root is read with `ntfs-reader` (`MftScan`), one sequential pass over the Master File Table. Logical file size is the unnamed data stream. Hard-link bytes are counted once, under the Win32 name. Reparse points are recorded and not treated as containers. If the volume cannot be opened, the scan falls through to the folder walk.
+- Every other root uses a worker pool around `FindFirstFileExW` (`FindExInfoBasic` and `FIND_FIRST_EX_LARGE_FETCH`). Size and the reparse attribute come from `WIN32_FIND_DATA`. Workers only enumerate. The blocking thread owns the index. `insert_ready` does not parse a path that is already normalized.
+- On launch, a non-elevated process with a fixed NTFS drive asks whether to restart as administrator. Continue starts the folder walk. The choice can be remembered. The top bar keeps a Faster scan action.
 - Progress streaming uses a callback in the scanner. The command adapts that callback to `tauri::ipc::Channel`. Tests do not need a Tauri runtime.
 - On cancel, the partial index is kept so the user can browse what was already found.
 - `trash_path` uses the `trash` crate. `permanent_delete` is the only caller of `remove_file` / `remove_dir_all`. Both then call `ScanIndex::remove_path`, which subtracts `freedBytes` up the ancestor chain and returns those nodes.
@@ -57,6 +62,7 @@ Rust is authoritative for paging and the graph cap. Do not re-implement the cap 
 - Zustand (`useFileStore`) is the only shared state. Components do not call `invoke`.
 - Tree pages (`childPages`, source `preview` or `index`) and the filtered folder list (`list`) are separate. A search must not replace the tree cache. The folder list is not rendered; `list` and `refreshList` stay so filtered results never mix into tree pages.
 - The selection details panel is a 2D layout widget (`components/layout/ViewerInspector.tsx`) docked under the folder tree by `SplitWorkspace`. It is not an overlay on the graph. `SplitWorkspace` owns the panel height ratio and collapsed flag. The graph surface is the canvas and HUD only.
+- While `scanStatus` is `scanning`, the canvas reads `progress` inside the animation frame and draws the root, at most 16 direct children, and the capped moons beside the largest folders. It does not write `graphView` on each tick. Each level-1 path keeps the slot angle it got the first time it appeared, including after the scan finishes. A new moon eases out from its parent. The radar sweep, scanning label, and path ticker fade out over about 700ms. A click during the scan selects the ball and does not drill in, because the index is published when the scan finishes.
 - Lists render through `@tanstack/react-virtual`. A "load more" row fetches the next page. Do not map a filesystem array into DOM nodes.
 - 3D code lives under `src/components/visualizer/`. `useFrame` may write refs and shader uniforms. It may call `useFileStore.getState()`. It must not call a React `setState` every frame. A one-shot action (the drain finished) is allowed.
 - Sphere geometry and the glass `MeshPhysicalMaterial` are allocated once per graph mount and passed down. Liquid `ShaderMaterial`s are per sphere because their uniforms differ. Meshes that share geometry use `dispose={null}` so one unmount does not free the shared GPU buffer.

@@ -39,6 +39,9 @@ export interface FileData {
   toast: string | null;
   confirmPath: string | null;
   drainingId: string | null;
+  elevated: boolean;
+  elevationPrompt: boolean;
+  pendingMount: string | null;
 }
 
 export interface FileActions {
@@ -60,6 +63,8 @@ export interface FileActions {
   confirmPermanentDelete: () => Promise<void>;
   dismissConfirm: () => void;
   dismissToast: () => void;
+  continueWithoutElevation: (remember: boolean) => Promise<void>;
+  restartElevated: () => Promise<void>;
 }
 
 export type FileStore = FileData & FileActions;
@@ -83,4 +88,7 @@ export const initialData: FileData = {
   toast: null,
   confirmPath: null,
   drainingId: null,
+  elevated: false,
+  elevationPrompt: false,
+  pendingMount: null,
 };
