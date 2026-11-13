@@ -109,7 +109,7 @@ export function elevationStatus(): Promise<ElevationStatus> {
   return invoke<ElevationStatus>("elevation_status");
 }
 
-/** `true` when Windows accepted the elevated process and this one is exiting. */
+/** `true` when Windows accepted the elevated launch and this process is exiting. */
 export function relaunchElevated(): Promise<boolean> {
   return invoke<boolean>("relaunch_elevated");
 }

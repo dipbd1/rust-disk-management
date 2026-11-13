@@ -5,7 +5,7 @@ export type TreeRow =
   | { kind: "node"; key: string; node: FileNode; depth: number }
   | { kind: "more"; key: string; parentPath: string; depth: number };
 
-export function flattenFolders(
+export function flattenTree(
   rootId: string | null,
   nodes: Record<string, FileNode>,
   pages: Record<string, ChildPage>,
@@ -14,10 +14,11 @@ export function flattenFolders(
   if (!rootId || !nodes[rootId]) return [];
   const open = new Set(expanded);
   const rows: TreeRow[] = [];
-  const walk = (id: string, depth: number) => {
-    const node = nodes[id];
-    if (!node || node.kind !== "folder") return;
+  const walk = (id: string, depth: number, fallback?: FileNode) => {
+    const node = nodes[id] ?? fallback;
+    if (!node || node.kind === "aggregate") return;
     rows.push({ kind: "node", key: node.id, node, depth });
+    if (node.kind !== "folder") return;
     if (!open.has(node.id) && !open.has(node.path)) return;
     const page = pages[node.path];
     if (!page) {
@@ -25,7 +26,8 @@ export function flattenFolders(
       return;
     }
     for (const child of page.nodes) {
-      if (child.kind === "folder") walk(child.id, depth + 1);
+      if (child.kind === "aggregate") continue;
+      walk(child.id, depth + 1, child);
     }
     if (!page.complete) {
       rows.push({ kind: "more", key: `more:${node.path}`, parentPath: node.path, depth: depth + 1 });

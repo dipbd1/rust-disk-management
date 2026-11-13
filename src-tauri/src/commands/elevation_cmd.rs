@@ -9,7 +9,8 @@ pub fn elevation_status() -> Result<ElevationStatus, AppError> {
     elevation::status()
 }
 
-/// `true` when Windows accepted the elevated launch and this process is exiting.
+/// `true` when Windows accepted the elevated launch. This process then exits
+/// so the elevated `tauri dev` session can take port 1420.
 #[tauri::command]
 pub fn relaunch_elevated(app: AppHandle) -> Result<bool, AppError> {
     let started = elevation::relaunch()?;

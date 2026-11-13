@@ -14,25 +14,55 @@ pub fn status() -> Result<ElevationStatus, AppError> {
     })
 }
 
-/// Starts this executable again with the `runas` verb.
-/// `false` means the user cancelled UAC or Windows refused the launch.
+/// Starts an elevated process. `false` means the user cancelled UAC or Windows refused the launch.
+/// Debug builds start `npm run tauri dev` so Cargo stays the parent. Release builds start this exe.
 pub fn relaunch() -> Result<bool, AppError> {
+    #[cfg(debug_assertions)]
+    {
+        relaunch_dev_session()
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        relaunch_exe()
+    }
+}
+
+#[cfg(debug_assertions)]
+fn relaunch_dev_session() -> Result<bool, AppError> {
+    let root = project_root()?;
+    let script = root.join("scripts").join("dev-admin.ps1");
+    if !script.exists() {
+        return Err(AppError::Elevation(format!("missing {}", script.display())));
+    }
+    let node = npm_tool("npm_node_execpath")?;
+    let npm = npm_tool("npm_execpath")?;
+    let params = format!(
+        "-NoProfile -ExecutionPolicy Bypass -File {} -Node {} -Npm {} -Project {} -Takeover",
+        quote_arg(&script.to_string_lossy()),
+        quote_arg(&node),
+        quote_arg(&npm),
+        quote_arg(&root.to_string_lossy()),
+    );
+    shell_execute("runas", "powershell.exe", &params)
+}
+
+#[cfg(not(debug_assertions))]
+fn relaunch_exe() -> Result<bool, AppError> {
     let exe = std::env::current_exe().map_err(|err| AppError::Elevation(err.to_string()))?;
-    let exe = exe.to_string_lossy();
     let params = std::env::args().skip(1).map(|arg| quote_arg(&arg)).collect::<Vec<_>>().join(" ");
-    let verb = wide("runas");
-    let file = wide(&exe);
-    let arguments = wide(&params);
+    shell_execute("runas", &exe.to_string_lossy(), &params)
+}
+
+fn shell_execute(verb: &str, file: &str, params: &str) -> Result<bool, AppError> {
+    let verb = wide(verb);
+    let file = wide(file);
+    let arguments = wide(params);
     let code = unsafe {
         windows_sys::Win32::UI::Shell::ShellExecuteW(
             std::ptr::null_mut(),
             verb.as_ptr(),
             file.as_ptr(),
-            if params.is_empty() {
-                std::ptr::null()
-            } else {
-                arguments.as_ptr()
-            },
+            if params.is_empty() { std::ptr::null() } else { arguments.as_ptr() },
             std::ptr::null(),
             windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL,
         )
@@ -40,7 +70,25 @@ pub fn relaunch() -> Result<bool, AppError> {
     Ok((code as isize) > 32)
 }
 
-fn is_elevated() -> bool {
+#[cfg(debug_assertions)]
+fn project_root() -> Result<std::path::PathBuf, AppError> {
+    let exe = std::env::current_exe().map_err(|err| AppError::Elevation(err.to_string()))?;
+    exe.parent()
+        .and_then(|path| path.parent())
+        .and_then(|path| path.parent())
+        .and_then(|path| path.parent())
+        .map(|path| path.to_path_buf())
+        .ok_or_else(|| AppError::Elevation("could not find the project root from the debug exe".into()))
+}
+
+#[cfg(debug_assertions)]
+fn npm_tool(name: &str) -> Result<String, AppError> {
+    std::env::var(name).map_err(|_| {
+        AppError::Elevation(format!("{name} is missing; start the dev session with npm run tauri dev"))
+    })
+}
+
+pub(crate) fn is_elevated() -> bool {
     use windows_sys::Win32::Foundation::CloseHandle;
     use windows_sys::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
     use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};

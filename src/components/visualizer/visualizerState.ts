@@ -11,12 +11,14 @@ interface VisualizerState {
   labelMode: LabelDensity;
   hoveredNodeId: string | null;
   resetCameraTrigger: number;
+  treeRevealTrigger: number;
   setCategoryFilter: (filter: FileCategory | "all") => void;
   setViewMode: (mode: ViewportMode) => void;
   toggleAutoOrbit: () => void;
   setLabelMode: (mode: LabelDensity) => void;
   setHoveredNodeId: (id: string | null) => void;
   triggerResetCamera: () => void;
+  triggerTreeReveal: () => void;
 }
 
 export const useVisualizerStore = create<VisualizerState>((set) => ({
@@ -26,10 +28,12 @@ export const useVisualizerStore = create<VisualizerState>((set) => ({
   labelMode: "smart",
   hoveredNodeId: null,
   resetCameraTrigger: 0,
+  treeRevealTrigger: 0,
   setCategoryFilter: (filter) => set({ categoryFilter: filter }),
   setViewMode: (mode) => set({ viewMode: mode }),
   toggleAutoOrbit: () => set((s) => ({ autoOrbit: !s.autoOrbit })),
   setLabelMode: (mode) => set({ labelMode: mode }),
   setHoveredNodeId: (id) => set({ hoveredNodeId: id }),
   triggerResetCamera: () => set((s) => ({ resetCameraTrigger: s.resetCameraTrigger + 1 })),
+  triggerTreeReveal: () => set((s) => ({ treeRevealTrigger: s.treeRevealTrigger + 1 })),
 }));

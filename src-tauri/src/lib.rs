@@ -7,6 +7,8 @@ mod state;
 
 use std::sync::Arc;
 
+use tauri::Manager;
+
 use state::AppState;
 
 #[cfg(debug_assertions)]
@@ -22,14 +24,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_remote_ui::init())
         .manage(Arc::new(AppState::new()))
-        .setup(|app| {
-            // Release builds do not open the unauthenticated command socket.
-            #[cfg(debug_assertions)]
-            start_browser_bridge(app.handle().clone());
-            #[cfg(not(debug_assertions))]
-            drop(app);
-            Ok(())
-        })
+        .setup(open_main_window)
         .invoke_handler(tauri::generate_handler![
             commands::scan_cmd::list_drives,
             commands::scan_cmd::start_scan,
@@ -47,6 +42,33 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn open_main_window(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let elevated = services::elevation::is_elevated();
+    let window = app
+        .config()
+        .app
+        .windows
+        .first()
+        .cloned()
+        .ok_or_else(|| std::io::Error::other("the app config has no window"))?;
+    let data_dir = app.path().app_local_data_dir()?.join(if elevated {
+        "webview-admin"
+    } else {
+        "webview-user"
+    });
+    std::fs::create_dir_all(&data_dir)?;
+    let mut builder =
+        tauri::WebviewWindowBuilder::from_config(app.handle(), &window)?.data_directory(data_dir);
+    if elevated {
+        builder = builder.title("Liquid Storage Manager (administrator)");
+    }
+    builder.build()?;
+    // Release builds do not open the unauthenticated command socket.
+    #[cfg(debug_assertions)]
+    start_browser_bridge(app.handle().clone());
+    Ok(())
 }
 
 #[cfg(debug_assertions)]

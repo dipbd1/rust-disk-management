@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { diskUsedRatio, formatBytes } from "../../lib/format";
 import { SATELLITE_CHILDREN, SATELLITE_PARENTS } from "../../lib/limits";
-import { isDriveRoot } from "../../lib/paths";
+import { isDriveRoot, isRemovedPath } from "../../lib/paths";
 import { getNodeVisualTheme, type NodeVisualTheme } from "../../lib/nodeColors";
 import { getChildren } from "../../services/tauriBridge";
 import { useFileStore } from "../../store/useFileStore";
@@ -184,6 +184,7 @@ export function OrganicGraph2D() {
   const categoryFilter = useVisualizerStore((state) => state.categoryFilter);
   const setHoveredNodeId = useVisualizerStore((state) => state.setHoveredNodeId);
   const resetCameraTrigger = useVisualizerStore((state) => state.resetCameraTrigger);
+  const triggerTreeReveal = useVisualizerStore((state) => state.triggerTreeReveal);
 
   // Pan & Zoom
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -290,8 +291,10 @@ export function OrganicGraph2D() {
     if (!graphView?.focus) return;
     const newFocusId = graphView.focus.id;
     const newFocusPath = graphView.focus.path;
+    const hubAlreadyOnScreen =
+      slotFocusRef.current === newFocusId || slotFocusRef.current === newFocusPath;
 
-    if (prevFocusIdRef.current && prevFocusIdRef.current !== newFocusId) {
+    if (prevFocusIdRef.current && prevFocusIdRef.current !== newFocusId && !hubAlreadyOnScreen) {
       // Find where this node was currently located in the visualizer layout
       const prevPos =
         ballPositionsRef.current.get(newFocusId) ||
@@ -300,9 +303,14 @@ export function OrganicGraph2D() {
       const canvas = canvasRef.current;
       const width = canvas ? canvas.clientWidth : 800;
       const height = canvas ? canvas.clientHeight : 700;
+      const navigatingUp = !prevPos && isRemovedPath(prevFocusIdRef.current, newFocusPath);
 
       transitionRef.current = {
-        fromPos: prevPos ? { ...prevPos } : { x: 0, y: 170, radius: 46 },
+        fromPos: prevPos
+          ? { ...prevPos }
+          : navigatingUp
+            ? { x: 0, y: 0, radius: 135 }
+            : { x: 0, y: 170, radius: 46 },
         toNode: graphView.focus,
         toTheme: getNodeVisualTheme(graphView.focus, 0, true),
         startTime: performance.now(),
@@ -1104,6 +1112,7 @@ export function OrganicGraph2D() {
 
       if (clickedNode) {
         selectNode(clickedNode.id);
+        triggerTreeReveal();
         if (clickedNode.kind === "folder" && scanStatusRef.current !== "scanning") {
           void focusNode(clickedNode.id);
         }

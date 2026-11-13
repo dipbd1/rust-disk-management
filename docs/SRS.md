@@ -14,10 +14,10 @@ A high-performance desktop storage analyzer and file management utility for Wind
 - **FR-2.2:** Scanning must be non-blocking. Progress updates and partial tree chunks shall stream to the frontend via Tauri v2 IPC `Channel` at a throttled interval (every 100ms). While a scan is running, the graph draws the drive, up to 16 of its largest direct children, and up to five moons on each of the 12 largest of those folders. Level-1 balls keep a stable slot through the end of the scan. New moons ease out from their parent. The radar sweep, scanning label, and path ticker fade out over about 700ms when the scan ends.
 - **FR-2.3:** Users must be able to cancel an active scan immediately via an atomic cancellation token (`Arc<AtomicBool>`).
 - **FR-2.4:** The scanner shall gracefully skip Windows system-locked directories (`System Volume Information`, `$Recycle.Bin`, restricted AppData junctions) without crashing, logging them as `access_deniedCount`.
-- **FR-2.5:** On launch, if the process is not elevated and a fixed NTFS drive is present, the app shall explain that an administrator scan is faster and that a folder walk still works. The user can restart as administrator or continue. "Don't ask again" remembers the continue choice. A Faster scan action stays available afterward.
+- **FR-2.5:** On launch, if the process is not elevated and a fixed NTFS drive is present, the app shall explain that an administrator scan is faster and that a folder walk still works. The user can restart as administrator or continue. "Don't ask again" remembers the continue choice. A Faster scan action stays available afterward. A debug restart exits and starts an elevated `tauri dev` session. A release build exits and starts one elevated process.
 
 #### FR-3: Left Pane — Virtualized Explorer & Context Menu
-- **FR-3.1:** The left pane shall render a collapsible folder tree capable of holding 100,000+ entries using row virtualization (`@tanstack/react-virtual`).
+- **FR-3.1:** The left pane shall render a virtualized tree of folders and files capable of holding 100,000+ entries (`@tanstack/react-virtual`). Folders collapse. Files are leaves.
 - **FR-3.2:** Nodes in the tree shall be sorted in descending order by cumulative byte size by default.
 - **FR-3.3:** Right-clicking any node shall open a custom Context Menu providing:
   - Focus Node in 3D View
