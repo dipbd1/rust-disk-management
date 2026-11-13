@@ -170,6 +170,22 @@ export function OrganicGraph2D() {
   const activeDrive = useFileStore((state) => state.activeDrive);
   const selectedNodeId = useFileStore((state) => state.selectedNodeId);
   const drainingId = useFileStore((state) => state.drainingId);
+  useEffect(() => {
+    if (!drainingId) return;
+    let fired = false;
+    const finish = () => {
+      if (fired) return;
+      const state = useFileStore.getState();
+      if (state.drainingId !== drainingId) return;
+      fired = true;
+      state.finishDrain(drainingId);
+    };
+    const timer = window.setTimeout(finish, 650);
+    return () => {
+      window.clearTimeout(timer);
+      finish();
+    };
+  }, [drainingId]);
   const selectNode = useFileStore((state) => state.selectNode);
   const focusNode = useFileStore((state) => state.focusNode);
   const childPages = useFileStore((state) => state.childPages);

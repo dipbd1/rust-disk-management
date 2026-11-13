@@ -5,6 +5,7 @@ use crate::models::{FileCategory, NodeKind};
 use crate::services::category::classify;
 use crate::services::paths::{normalize_path, ready_file_name, ready_parent};
 
+mod access;
 mod view;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -27,6 +28,8 @@ pub struct ScanIndex {
     nodes: Vec<NodeRecord>,
     by_path: HashMap<String, NodeId>,
     root: Option<NodeId>,
+    /// Bumps when the tree changes so the insight cache can drop a stale sort.
+    revision: u64,
 }
 
 impl ScanIndex {
@@ -36,6 +39,7 @@ impl ScanIndex {
             nodes: Vec::new(),
             by_path: HashMap::new(),
             root: None,
+            revision: 0,
         }
     }
 
@@ -104,6 +108,7 @@ impl ScanIndex {
         if size_bytes > 0 {
             self.bubble(id, size_bytes);
         }
+        self.revision = self.revision.wrapping_add(1);
         Ok(())
     }
 
@@ -124,6 +129,7 @@ impl ScanIndex {
     pub fn remove_path(&mut self, path: &str) -> Result<crate::models::DeleteResult, AppError> {
         let path = normalize_path(path);
         let id = self.lookup(&path)?;
+        self.revision = self.revision.wrapping_add(1);
         let freed = self.nodes[id.0 as usize].size_bytes;
         let parent = self.nodes[id.0 as usize].parent;
         if let Some(pid) = parent {

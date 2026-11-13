@@ -28,6 +28,10 @@ pub fn classify(name: &str, is_dir: bool, size_bytes: u64) -> FileCategory {
     }
 }
 
+pub(crate) fn file_extension(name: &str) -> Option<String> {
+    extension(name)
+}
+
 fn extension(name: &str) -> Option<String> {
     let (stem, ext) = name.rsplit_once('.')?;
     if stem.is_empty() || ext.is_empty() {

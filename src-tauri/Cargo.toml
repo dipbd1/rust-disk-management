@@ -37,6 +37,8 @@ notify = "8.2.2"
 arboard = "3.7.0"
 sysinfo = { version = "0.40.1", default-features = false, features = ["disk"] }
 tauri-remote-ui = "1.1.2"
+tauri-plugin-dialog = "2"
+sha2 = "0.10"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

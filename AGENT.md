@@ -19,8 +19,12 @@ Forbidden drift:
 - Calling `@tauri-apps/api` or `tauri-remote-ui` outside `src/services/tauriBridge.ts`
 - `.unwrap()` / `.expect()` in commands or services
 - `setState` inside `useFrame`
-- `std::fs::remove_dir_all` outside `permanent_delete`
-- A second cache that mixes filtered search results into the tree pages
+- `std::fs::remove_file` / `remove_dir_all` outside `permanent_delete`
+- A second cache that mixes filtered search results, insight pages, reclaim rows, duplicate groups, or growth deltas into the tree pages
+- Reclaim or duplicate review calling `permanent_delete`
+- Duplicate results that include a never-delete prefix, including Windows caches
+- Treating the growth snapshot as a second tree or sending it wholesale to the webview
+- Raising `GRAPH_CHILD_CAP` for the area map
 
 ## 1. Core architectural principles
 
@@ -38,7 +42,7 @@ Forbidden drift:
 - **Parallel non-blocking scanning:** An elevated NTFS drive root uses `ntfs-reader` (`MftScan`). Anything else, including a volume that cannot be opened, uses a `FindFirstFileExW` worker pool (`FindExInfoBasic`, `FIND_FIRST_EX_LARGE_FETCH`). Take size from the find buffer. Do not stat each file again. Scan hidden files. Do not follow symlinks or reparse points. Do not descend `System Volume Information` or `$Recycle.Bin`. Count other access errors and continue. Never block the main Tauri thread. Heavy I/O uses `tauri::async_runtime::spawn_blocking`. On launch, if the process is not elevated and a fixed NTFS drive is present, ask before the first scan: restart as administrator, or continue with the folder walk. A debug restart exits and starts an elevated `tauri dev` (`npm run dev:admin` does the same). A release build exits and leaves one elevated process. Normal and elevated runs use separate WebView2 data directories.
 - **Streaming IPC:** Use `tauri::ipc::Channel` to stream `ScanProgress` every 100ms inside the desktop webview. Also emit `scan-progress` with `EmitterExt` so a browser on the remote-ui socket gets the same payload. The browser command returns immediately and the page waits for `done: true`. The payload carries a preview of at most 200 top-level nodes, not the whole tree. The remote-ui server starts only in debug builds.
 - **Cancellation:** `Arc<AtomicBool>` shared with `cancel_scan`. Relaxed ordering is enough. A generation counter discards a scan that a newer one replaced. Store the partial index on cancel.
-- **Safe deletions:** Default user deletes go through the `trash` crate. `std::fs::remove_file` / `remove_dir_all` run only inside `permanent_delete`, after the UI confirmation modal. Never delete a drive root (`C:\`).
+- **Safe deletions:** Default user deletes go through the `trash` crate. `std::fs::remove_file` / `remove_dir_all` run only inside `permanent_delete`, after the UI confirmation modal. Never delete a drive root (`C:\`). Reclaim and duplicate review call `trash_indexed` only. Emptying the Recycle Bin uses `SHEmptyRecycleBinW`. The never-delete guard refuses `\Windows\` (reclaim may still recycle the named safe caches), `\Program Files\`, `\Program Files (x86)\`, and drive roots. Duplicate review does not use the Windows-cache exception.
 - **Windows paths:** Normalize with `services/paths.rs` before a path is stored or sent to the UI. One function, no ad-hoc slash logic in components.
 - **Watcher:** `notify` watches the focused folder non-recursively and emits `fs-stale`. It must not start a second scanner.
 
@@ -46,12 +50,12 @@ Forbidden drift:
 
 - **Strict TypeScript:** Never use `any`. Every Rust struct serialized via `serde` has a matching interface in `src/types/filesystem.ts`. Rust structs use `#[serde(rename_all = "camelCase")]`.
 - **Virtualization required:** Never map raw file arrays into the DOM. Trees and folder lists use `@tanstack/react-virtual` and paged `get_children`.
-- **Two page caches:** `childPages` is the unfiltered tree. `list` is the focused folder and may include a search query. Do not merge them.
+- **Two page caches:** `childPages` is the unfiltered tree. `list` is the focused folder and may include a search query. Do not merge them. Whole-scan search, largest files, extension files, reclaim, duplicates, and growth stay in their own store fields. The growth file is not the tree. The area map uses the current graph payload and does not raise `GRAPH_CHILD_CAP`. Focusing a folder pages ancestors from the scan root downward, not the drive above a folder scan.
 - Stay on the React version already in `package.json` (React 19). Do not pin React 18 because an older blueprint mentioned it.
 
 ## 4. React Three Fiber and 3D performance rules
 
-- **NEVER `setState` inside `useFrame`:** Mutate mesh refs or shader uniforms. A single one-shot store action when a drain animation finishes is the exception.
+- **NEVER `setState` inside `useFrame`:** Mutate mesh refs or shader uniforms. A single one-shot store action when a drain animation finishes is the exception. `OrganicGraph2D` calls `finishDrain` once when that drain ends so Delete reaches the Recycle Bin.
 - **Read Zustand transiently in 3D:** Inside `useFrame`, read `useFileStore.getState()` for selection and drain state.
 - **Cap visible 3D nodes:** The backend `get_graph_view` returns the focus sphere, at most 60 children, and one "Other Small Files" aggregate. Do not uncapped this in the component.
 - **Shader and geometry reuse:** Share one `SphereGeometry` and one glass `MeshPhysicalMaterial` per graph mount. Pass `dispose={null}` on meshes that use them. Per-sphere shader materials exist only because fill and color differ.

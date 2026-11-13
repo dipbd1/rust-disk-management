@@ -66,3 +66,94 @@ export interface ElevationStatus {
   elevated: boolean;
   ntfsPresent: boolean;
 }
+
+export interface InsightPage {
+  total: number;
+  offset: number;
+  nodes: FileNode[];
+}
+
+export interface ExtensionRow {
+  extension: string;
+  count: number;
+  sizeBytes: number;
+  other: boolean;
+}
+
+export interface ExtensionRollup {
+  rows: ExtensionRow[];
+}
+
+export type ReclaimTier = "safe" | "rebuild" | "review" | "system";
+
+export interface ReclaimRow {
+  id: string;
+  tier: ReclaimTier;
+  title: string;
+  sentence: string;
+  revealPath: string;
+  sizeBytes: number;
+  itemCount: number;
+  canRecycle: boolean;
+}
+
+export interface RecycleBinStatus {
+  sizeBytes: number;
+  itemCount: number;
+  available: boolean;
+}
+
+export interface ReclaimReport {
+  rows: ReclaimRow[];
+  recycleBin: RecycleBinStatus;
+}
+
+export interface RecycleBatch {
+  freedBytes: number;
+  results: DeleteResult[];
+}
+
+export interface DuplicateFile {
+  path: string;
+  name: string;
+  sizeBytes: number;
+}
+
+export interface DuplicateGroup {
+  id: string;
+  sizeBytes: number;
+  wastedBytes: number;
+  keeper: DuplicateFile;
+  copies: DuplicateFile[];
+}
+
+export interface DuplicateProgress {
+  checked: number;
+  total: number;
+  currentPath: string;
+  done: boolean;
+  cancelled: boolean;
+  truncated: boolean;
+  groups: DuplicateGroup[];
+}
+
+export interface GrowthEntry {
+  path: string;
+  name: string;
+  kind: NodeKind;
+  previousBytes: number;
+  sizeBytes: number;
+  deltaBytes: number;
+}
+
+export interface GrowthDelta {
+  root: string;
+  hasBaseline: boolean;
+  previousTotal: number;
+  totalBytes: number;
+  entries: GrowthEntry[];
+}
+
+export interface BinEmptyResult {
+  freedBytes: number;
+}

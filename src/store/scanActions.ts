@@ -1,6 +1,6 @@
 import { CHILD_PAGE_SIZE } from "../lib/limits";
 import { diskUsedRatio, errorMessage } from "../lib/format";
-import { cancelScan, elevationStatus, getChildren, listDrives, onFsStale, relaunchElevated, startScan, watchPath } from "../services/tauriBridge";
+import { cancelScan, elevationStatus, getChildren, growthDelta, listDrives, onFsStale, relaunchElevated, startScan, watchPath } from "../services/tauriBridge";
 import { applyIndexPage, applyPreview, placeholderNode } from "./cache";
 import { loadGraph, refreshList } from "./navActions";
 import { session } from "./session";
@@ -85,7 +85,8 @@ export async function scanDrive(set: SetFile, get: GetFile, mount: string, force
   session.preview = token;
   const drive = get().drives.find((item) => item.mount === mount);
   const used = drive ? diskUsedRatio(drive) * drive.totalBytes : 0;
-  const root = placeholderNode(mount, drive?.label ?? "", used);
+  const folderName = mount.replace(/\\$/, "").split("\\").pop() || mount;
+  const root = placeholderNode(mount, drive?.label || folderName, used);
   set({
     activeDrive: mount,
     rootId: mount,
@@ -103,6 +104,15 @@ export async function scanDrive(set: SetFile, get: GetFile, mount: string, force
     drainingId: null,
     confirmPath: null,
     query: "",
+    largestPage: null,
+    searchPage: null,
+    extensions: null,
+    extensionTarget: null,
+    extensionPage: null,
+    reclaim: null,
+    duplicateRun: null,
+    growth: null,
+    recyclePrompt: null,
   });
   try {
     const finalProgress = await startScan(
@@ -151,6 +161,15 @@ async function settleScan(set: SetFile, get: GetFile, token: number, cancelled: 
   }
   try {
     await watchPath(focus);
+  } catch (error) {
+    if (token !== session.scan) return;
+    set({ toast: errorMessage(error) });
+  }
+  if (cancelled || token !== session.scan) return;
+  try {
+    const growth = await growthDelta();
+    if (token !== session.scan) return;
+    set({ growth });
   } catch (error) {
     if (token !== session.scan) return;
     set({ toast: errorMessage(error) });

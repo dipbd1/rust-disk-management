@@ -16,12 +16,16 @@ export function TopDriveBar() {
   const elevated = useFileStore((state) => state.elevated);
   const elevationPrompt = useFileStore((state) => state.elevationPrompt);
   const restartElevated = useFileStore((state) => state.restartElevated);
+  const scanFolder = useFileStore((state) => state.scanFolder);
   const ntfsFixed = drives.some((drive) => !drive.isRemovable && drive.fileSystem.toUpperCase() === "NTFS");
 
   const crumbs = focusedNodeId ? breadcrumbs(focusedNodeId) : [];
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-white/10 bg-slate-900/70 px-3 backdrop-blur">
+      <button type="button" className="h-8 shrink-0 rounded-md border border-white/10 px-2.5 text-xs hover:bg-white/5" onClick={() => void scanFolder()}>
+        Folder
+      </button>
       <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto">
         {drives.map((drive) => {
           const used = diskUsedRatio(drive) * 100;

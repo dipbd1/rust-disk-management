@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { ConfirmDelete } from "./components/explorer/ConfirmDelete";
+import { RecycleConfirm } from "./components/explorer/RecycleConfirm";
 import { Toast } from "./components/explorer/Toast";
 import { ElevationPrompt } from "./components/layout/ElevationPrompt";
 import { SplitWorkspace } from "./components/layout/SplitWorkspace";
@@ -20,11 +21,12 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Delete" || !event.shiftKey || isTypingTarget(event.target)) return;
-      const selected = useFileStore.getState().selectedNodeId;
-      if (!selected) return;
+      if (event.key !== "Delete" || isTypingTarget(event.target)) return;
+      const state = useFileStore.getState();
+      if (!state.selectedNodeId || state.confirmPath || state.recyclePrompt) return;
       event.preventDefault();
-      useFileStore.getState().requestPermanentDelete(selected);
+      if (event.shiftKey) state.requestPermanentDelete(state.selectedNodeId);
+      else state.requestTrash(state.selectedNodeId);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -36,6 +38,7 @@ export default function App() {
       <SplitWorkspace />
       <ElevationPrompt />
       <ConfirmDelete />
+      <RecycleConfirm />
       <Toast />
     </div>
   );

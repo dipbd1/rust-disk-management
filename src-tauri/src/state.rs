@@ -2,9 +2,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::error::AppError;
-use crate::models::ScanProgress;
+use crate::models::{DuplicateGroup, GrowthDelta, ScanProgress};
 use crate::services::index::ScanIndex;
+use crate::services::insights::InsightCache;
 use crate::services::watcher::FolderWatcher;
+
+#[path = "state_jobs.rs"]
+mod jobs;
 
 struct Session {
     index: Option<ScanIndex>,
@@ -17,6 +21,10 @@ struct Session {
     latest: Option<ScanProgress>,
     /// Bumps on every stored preview so the browser emit loop can skip stale ticks.
     progress_seq: u64,
+    growth: Option<GrowthDelta>,
+    duplicate_generation: u64,
+    duplicate_cancel: Arc<AtomicBool>,
+    duplicate_groups: Vec<DuplicateGroup>,
 }
 
 /// How a browser `start_scan_remote` should treat the scan already in memory.
@@ -34,6 +42,8 @@ pub struct AppState {
     watcher: Mutex<Option<FolderWatcher>>,
     /// One in-flight browser emit. Further ticks only update `latest`.
     emit_scheduled: AtomicBool,
+    /// Separate from the session lock so a query can borrow the index and the cache together.
+    insight: Mutex<Option<InsightCache>>,
 }
 
 impl AppState {
@@ -47,9 +57,14 @@ impl AppState {
                 scan_path: String::new(),
                 latest: None,
                 progress_seq: 0,
+                growth: None,
+                duplicate_generation: 0,
+                duplicate_cancel: Arc::new(AtomicBool::new(false)),
+                duplicate_groups: Vec::new(),
             }),
             watcher: Mutex::new(None),
             emit_scheduled: AtomicBool::new(false),
+            insight: Mutex::new(None),
         }
     }
 
@@ -63,7 +78,14 @@ impl AppState {
         session.scan_path = path.to_string();
         session.latest = None;
         session.progress_seq = session.progress_seq.wrapping_add(1);
-        (session.generation, cancel)
+        session.growth = None;
+        session.duplicate_groups.clear();
+        session.duplicate_generation = session.duplicate_generation.wrapping_add(1);
+        session.duplicate_cancel.store(true, Ordering::Relaxed);
+        let generation = session.generation;
+        drop(session);
+        *lock(&self.insight) = None;
+        (generation, cancel)
     }
 
     pub fn remote_scan(&self, path: &str) -> RemoteScan {
@@ -121,13 +143,36 @@ impl AppState {
 
     pub fn finish_scan(&self, generation: u64, index: ScanIndex) -> bool {
         let mut session = lock(&self.session);
-        if session.generation == generation {
+        let stored = session.generation == generation;
+        if stored {
             session.index = Some(index);
             session.scanning = false;
-            true
-        } else {
-            false
         }
+        drop(session);
+        if stored {
+            *lock(&self.insight) = None;
+        }
+        stored
+    }
+
+    pub fn with_insight<T>(
+        &self,
+        f: impl FnOnce(&ScanIndex, &mut Option<InsightCache>) -> Result<T, AppError>,
+    ) -> Result<T, AppError> {
+        let session = lock(&self.session);
+        let Some(index) = session.index.as_ref() else {
+            return Err(AppError::NotFound("no scan".into()));
+        };
+        let mut cache = lock(&self.insight);
+        f(index, &mut cache)
+    }
+
+    pub fn set_growth(&self, delta: GrowthDelta) {
+        lock(&self.session).growth = Some(delta);
+    }
+
+    pub fn growth(&self) -> Option<GrowthDelta> {
+        lock(&self.session).growth.clone()
     }
 
     pub fn with_index<T>(

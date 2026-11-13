@@ -9,6 +9,26 @@ import {
   reveal,
 } from "./deleteActions";
 import { focusNode, loadMoreList, loadMoreTree, setQuery, toggleExpanded } from "./navActions";
+import {
+  cancelDuplicates,
+  confirmRecycle,
+  dismissRecycle,
+  loadReclaim,
+  promptRecycle,
+  startDuplicates,
+} from "./cleanupActions";
+import {
+  loadExtensions,
+  loadGrowth,
+  loadLargest,
+  loadMoreExtension,
+  loadMoreLargest,
+  loadMoreSearch,
+  openExtension,
+  openLocated,
+  scanFolder,
+  searchWhole,
+} from "./insightActions";
 import { boot, cancelActiveScan, continueWithoutElevation, rescan, restartElevated, scanDrive } from "./scanActions";
 import { initialData, type FileStore } from "./types";
 
@@ -40,4 +60,21 @@ export const useFileStore = create<FileStore>((set, get) => ({
   dismissToast: () => set({ toast: null }),
   continueWithoutElevation: (remember) => continueWithoutElevation(set, get, remember),
   restartElevated: () => restartElevated(set, get),
+  setLeftTab: (tab) => set({ leftTab: tab }),
+  loadLargest: () => loadLargest(set),
+  loadMoreLargest: () => loadMoreLargest(set, get),
+  searchWhole: (query) => searchWhole(set, query),
+  loadMoreSearch: (query) => loadMoreSearch(set, get, query),
+  loadExtensions: () => loadExtensions(set),
+  openExtension: (target) => openExtension(set, target),
+  loadMoreExtension: () => loadMoreExtension(set, get),
+  openLocated: (node) => openLocated(set, get, node),
+  loadReclaim: () => loadReclaim(set),
+  loadGrowth: () => loadGrowth(set),
+  scanFolder: () => scanFolder(set, get),
+  startDuplicates: () => startDuplicates(set, get),
+  cancelDuplicates: () => cancelDuplicates(set),
+  promptRecycle: (prompt) => promptRecycle(set, prompt),
+  confirmRecycle: () => confirmRecycle(set, get),
+  dismissRecycle: () => dismissRecycle(set),
 }));

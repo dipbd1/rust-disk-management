@@ -79,6 +79,9 @@ async fn run_scan(
         let stored = walk_state.finish_scan(generation, index);
         if stored {
             publish_progress(&walk_state, &app, generation, &on_progress, progress.clone());
+            if !progress.cancelled {
+                record_growth(&app, &walk_state);
+            }
         }
         Ok(progress)
     })
@@ -93,6 +96,16 @@ async fn run_scan(
         emit_event(&emit_app, SCAN_ERROR_EVENT, error.to_string()).await;
     }
     outcome
+}
+
+fn record_growth(app: &AppHandle, state: &Arc<AppState>) {
+    let Ok(dir) = app.path().app_data_dir() else {
+        return;
+    };
+    let Ok(delta) = state.with_index(|index| crate::services::history::record(&dir, index)) else {
+        return;
+    };
+    state.set_growth(delta);
 }
 
 fn publish_progress(

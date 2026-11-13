@@ -4,8 +4,11 @@ import type { FileCategory } from "../../types/filesystem";
 export type ViewportMode = "perspective" | "top";
 export type LabelDensity = "smart" | "all" | "minimal";
 
+export type GraphSurface = "liquid" | "map";
+
 interface VisualizerState {
   categoryFilter: FileCategory | "all";
+  surface: GraphSurface;
   viewMode: ViewportMode;
   autoOrbit: boolean;
   labelMode: LabelDensity;
@@ -13,6 +16,7 @@ interface VisualizerState {
   resetCameraTrigger: number;
   treeRevealTrigger: number;
   setCategoryFilter: (filter: FileCategory | "all") => void;
+  toggleSurface: () => void;
   setViewMode: (mode: ViewportMode) => void;
   toggleAutoOrbit: () => void;
   setLabelMode: (mode: LabelDensity) => void;
@@ -23,6 +27,7 @@ interface VisualizerState {
 
 export const useVisualizerStore = create<VisualizerState>((set) => ({
   categoryFilter: "all",
+  surface: "liquid",
   viewMode: "perspective",
   autoOrbit: false,
   labelMode: "smart",
@@ -30,6 +35,7 @@ export const useVisualizerStore = create<VisualizerState>((set) => ({
   resetCameraTrigger: 0,
   treeRevealTrigger: 0,
   setCategoryFilter: (filter) => set({ categoryFilter: filter }),
+  toggleSurface: () => set((state) => ({ surface: state.surface === "liquid" ? "map" : "liquid" })),
   setViewMode: (mode) => set({ viewMode: mode }),
   toggleAutoOrbit: () => set((s) => ({ autoOrbit: !s.autoOrbit })),
   setLabelMode: (mode) => set({ labelMode: mode }),

@@ -1,5 +1,11 @@
 import { useRef, useState, type PointerEvent } from "react";
+import { DuplicatePanel } from "../explorer/DuplicatePanel";
+import { GrowthPanel } from "../explorer/GrowthPanel";
+import { PaneTabs } from "../explorer/PaneTabs";
+import { ReclaimPanel } from "../explorer/ReclaimPanel";
+import { LargestPanel, SearchPanel, TypesPanel } from "../explorer/SpacePanels";
 import { VirtualFileTree } from "../explorer/VirtualFileTree";
+import { useFileStore } from "../../store/useFileStore";
 import { GraphCanvas } from "../visualizer/GraphCanvas";
 import { ViewerInspector } from "./ViewerInspector";
 
@@ -13,6 +19,7 @@ export function SplitWorkspace() {
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
   const widthDrag = useRef<number | null>(null);
   const heightDrag = useRef<number | null>(null);
+  const leftTab = useFileStore((state) => state.leftTab);
 
   const onWidthPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     widthDrag.current = event.pointerId;
@@ -53,10 +60,19 @@ export function SplitWorkspace() {
     <div className="flex min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-col border-r border-white/10" style={{ width: `${left}%` }}>
         <div
-          className="min-h-0 overflow-hidden"
+          className="flex min-h-0 flex-col overflow-hidden"
           style={{ flex: detailsCollapsed ? "1 1 0%" : `${1 - detailsRatio} 1 0%` }}
         >
-          <VirtualFileTree />
+          <PaneTabs />
+          <div className="flex min-h-0 flex-1 flex-col">
+            {leftTab === "explorer" ? <VirtualFileTree /> : null}
+            {leftTab === "largest" ? <LargestPanel /> : null}
+            {leftTab === "search" ? <SearchPanel /> : null}
+            {leftTab === "types" ? <TypesPanel /> : null}
+            {leftTab === "reclaim" ? <ReclaimPanel /> : null}
+            {leftTab === "duplicates" ? <DuplicatePanel /> : null}
+            {leftTab === "growth" ? <GrowthPanel /> : null}
+          </div>
         </div>
         {detailsCollapsed ? null : (
           <div

@@ -22,6 +22,7 @@ const REMOTE_UI_PORT: u16 = 9090;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_remote_ui::init())
         .manage(Arc::new(AppState::new()))
         .setup(open_main_window)
@@ -39,6 +40,19 @@ pub fn run() {
             commands::fs_ops_cmd::watch_path,
             commands::elevation_cmd::elevation_status,
             commands::elevation_cmd::relaunch_elevated,
+            commands::insights_cmd::largest_files,
+            commands::insights_cmd::search_index,
+            commands::insights_cmd::extension_rollup,
+            commands::insights_cmd::extension_files,
+            commands::insights_cmd::reclaim_report,
+            commands::insights_cmd::recycle_reclaim,
+            commands::insights_cmd::empty_recycle_bin,
+            commands::insights_cmd::growth_delta,
+            commands::insights_cmd::pick_scan_folder,
+            commands::insights_cmd::start_duplicate_review,
+            commands::insights_cmd::start_duplicate_review_remote,
+            commands::insights_cmd::cancel_duplicate_review,
+            commands::insights_cmd::recycle_duplicate_copies,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

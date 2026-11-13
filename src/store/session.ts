@@ -4,6 +4,8 @@ export const session = {
   focus: 0,
   list: 0,
   view: 0,
+  insight: 0,
+  search: 0,
   booted: false,
   stopStale: (): void => {},
 };

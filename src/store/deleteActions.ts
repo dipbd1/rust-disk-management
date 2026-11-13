@@ -1,5 +1,5 @@
 import type { GraphView } from "../types/filesystem";
-import { errorMessage } from "../lib/format";
+import { errorMessage, formatBytes } from "../lib/format";
 import { isDriveRoot } from "../lib/paths";
 import { copyPath, permanentDelete, revealInExplorer, trashPath, watchPath } from "../services/tauriBridge";
 import { applyDelete, nodeByPath } from "./cache";
@@ -31,7 +31,15 @@ async function commit(set: SetFile, get: GetFile, path: string, mode: "trash" | 
   const before = get().focusedNodeId;
   try {
     const result = mode === "trash" ? await trashPath(path) : await permanentDelete(path);
-    set((state) => applyDelete(state, result));
+    set((state) => ({
+      ...applyDelete(state, result),
+      toast: mode === "trash" ? `Moved to the Recycle Bin · ${formatBytes(result.freedBytes)} freed` : state.toast,
+      largestPage: null,
+      searchPage: null,
+      extensions: null,
+      extensionPage: null,
+      reclaim: null,
+    }));
     const focus = get().focusedNodeId;
     if (focus) {
       try {

@@ -58,9 +58,15 @@ export async function loadGraph(set: SetFile, get: GetFile, path: string): Promi
   }));
 }
 
+function chainFromScanRoot(chain: string[], rootId: string | null): string[] {
+  if (!rootId) return chain;
+  const start = chain.findIndex((path) => path === rootId);
+  return start >= 0 ? chain.slice(start) : chain;
+}
+
 export async function focusNode(set: SetFile, get: GetFile, id: string): Promise<void> {
   const gen = ++session.focus;
-  const chain = ancestorChain(id);
+  const chain = chainFromScanRoot(ancestorChain(id), get().rootId);
   set((state) => ({
     focusedNodeId: id,
     selectedNodeId: id,

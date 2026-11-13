@@ -24,6 +24,14 @@ pub enum AppError {
     Watch(String),
     #[error("elevation failed: {0}")]
     Elevation(String),
+    #[error("refusing to recycle a protected path ({0})")]
+    Protected(String),
+    #[error("reclaim failed: {0}")]
+    Reclaim(String),
+    #[error("duplicate review failed: {0}")]
+    Duplicates(String),
+    #[error("growth snapshot failed: {0}")]
+    History(String),
 }
 
 impl serde::Serialize for AppError {

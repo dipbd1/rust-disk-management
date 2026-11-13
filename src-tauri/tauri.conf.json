@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "disk-space-management",
+  "productName": "Liquid Storage Manager",
   "version": "0.1.0",
   "identifier": "com.anarchy.disk-space-management",
   "build": {

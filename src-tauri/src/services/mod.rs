@@ -1,10 +1,17 @@
 pub mod category;
+pub mod deletion;
 pub mod drives;
+pub mod duplicates;
 pub mod elevation;
+pub mod guard;
+pub mod history;
 pub mod index;
+pub mod insights;
 pub mod mft;
 pub mod paths;
 pub mod preview;
+pub mod reclaim;
+pub mod recycle_bin;
 pub mod scanner;
 pub mod walk;
 pub mod watcher;

@@ -1,4 +1,30 @@
-import type { DriveInfo, FileNode, GraphView, ScanProgress } from "../types/filesystem";
+import type {
+  DriveInfo,
+  DuplicateProgress,
+  ExtensionRollup,
+  FileNode,
+  GraphView,
+  GrowthDelta,
+  InsightPage,
+  ReclaimReport,
+  ScanProgress,
+} from "../types/filesystem";
+
+export type LeftTab = "explorer" | "largest" | "search" | "types" | "reclaim" | "duplicates" | "growth";
+
+export interface ExtensionTarget {
+  extension: string;
+  other: boolean;
+}
+
+export interface DuplicateRun extends DuplicateProgress {
+  running: boolean;
+}
+
+export type RecyclePrompt =
+  | { kind: "reclaim"; ids: string[]; title: string; body: string }
+  | { kind: "bin"; title: string; body: string }
+  | { kind: "duplicates"; paths: string[]; title: string; body: string };
 
 export type ScanStatus = "idle" | "scanning" | "ready" | "cancelled" | "error";
 
@@ -42,6 +68,16 @@ export interface FileData {
   elevated: boolean;
   elevationPrompt: boolean;
   pendingMount: string | null;
+  leftTab: LeftTab;
+  largestPage: InsightPage | null;
+  searchPage: InsightPage | null;
+  extensions: ExtensionRollup | null;
+  extensionTarget: ExtensionTarget | null;
+  extensionPage: InsightPage | null;
+  reclaim: ReclaimReport | null;
+  duplicateRun: DuplicateRun | null;
+  growth: GrowthDelta | null;
+  recyclePrompt: RecyclePrompt | null;
 }
 
 export interface FileActions {
@@ -65,6 +101,23 @@ export interface FileActions {
   dismissToast: () => void;
   continueWithoutElevation: (remember: boolean) => Promise<void>;
   restartElevated: () => Promise<void>;
+  setLeftTab: (tab: LeftTab) => void;
+  loadLargest: () => Promise<void>;
+  loadMoreLargest: () => Promise<void>;
+  searchWhole: (query: string) => Promise<void>;
+  loadMoreSearch: (query: string) => Promise<void>;
+  loadExtensions: () => Promise<void>;
+  openExtension: (target: ExtensionTarget) => Promise<void>;
+  loadMoreExtension: () => Promise<void>;
+  openLocated: (node: FileNode) => Promise<void>;
+  loadReclaim: () => Promise<void>;
+  loadGrowth: () => Promise<void>;
+  scanFolder: () => Promise<void>;
+  startDuplicates: () => Promise<void>;
+  cancelDuplicates: () => Promise<void>;
+  promptRecycle: (prompt: RecyclePrompt) => void;
+  confirmRecycle: () => Promise<void>;
+  dismissRecycle: () => void;
 }
 
 export type FileStore = FileData & FileActions;
@@ -91,4 +144,14 @@ export const initialData: FileData = {
   elevated: false,
   elevationPrompt: false,
   pendingMount: null,
+  leftTab: "explorer",
+  largestPage: null,
+  searchPage: null,
+  extensions: null,
+  extensionTarget: null,
+  extensionPage: null,
+  reclaim: null,
+  duplicateRun: null,
+  growth: null,
+  recyclePrompt: null,
 };

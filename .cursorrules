@@ -12,7 +12,11 @@ If this file and those docs ever disagree, follow the docs and update this file.
 - `.unwrap()` / `.expect()` in commands or services (`Builder::run` in `lib.rs` is the one allowed startup `.expect()`)
 - `setState` inside `useFrame`
 - `std::fs::remove_file` / `remove_dir_all` outside `permanent_delete`
-- A second cache that mixes filtered search results into the tree pages
+- A second cache that mixes filtered search results, insight pages, reclaim rows, duplicate groups, or growth deltas into the tree pages
+- Reclaim or duplicate review calling `permanent_delete`
+- Duplicate results that include a never-delete prefix, including Windows caches
+- Treating the growth snapshot as a second tree or sending it wholesale to the webview
+- Raising `GRAPH_CHILD_CAP` for the area map
 
 ## Architecture
 
@@ -26,11 +30,11 @@ If this file and those docs ever disagree, follow the docs and update this file.
 - An elevated NTFS drive root is read with `MftScan`. Every other scan uses `FindFirstFileExW` with `FIND_FIRST_EX_LARGE_FETCH` and takes size from the find buffer. Do not stat each file again. Scan hidden files. Do not follow symlinks or reparse points. Do not descend `System Volume Information` or `$Recycle.Bin`. Count other access errors and continue. A non-elevated launch with a fixed NTFS drive asks once whether to restart as administrator. A debug restart exits and starts an elevated `tauri dev`. A release build exits and leaves one elevated process. Normal and elevated runs use separate WebView2 data directories.
 - Heavy work uses `tauri::async_runtime::spawn_blocking`. Stream `ScanProgress` on `tauri::ipc::Channel` in the webview, and emit `scan-progress` with `EmitterExt` for the browser socket. The browser command returns immediately and the page waits for `done`. The remote-ui server starts only in debug builds. The scanner takes a progress callback so tests do not need a Tauri runtime.
 - Cancel with `Arc<AtomicBool>` (relaxed). A generation counter stops an older scan from overwriting a newer index. On cancel, keep the partial index and return `Ok` with `cancelled: true`.
-- `trash_path` uses the `trash` crate. Never delete a drive root (`C:\`).
+- `trash_path` uses the `trash` crate. Never delete a drive root (`C:\`). Reclaim and duplicate review never call `permanent_delete`. Duplicate results never include never-delete prefixes, and they have no Windows-cache exception. Insight results never merge into `childPages`. The growth file is not the tree. The area map does not raise `GRAPH_CHILD_CAP`.
 - `notify` watches the focused folder non-recursively, debounces, and emits `fs-stale`. It does not start a scan.
 - `AppError` (`thiserror`) serializes as a string. Commands return `Result<T, AppError>`.
 - Rust structs use `#[serde(rename_all = "camelCase")]`. TypeScript mirrors live in `src/types/filesystem.ts`. No `any`.
 - Keep files under about 250 lines. New constants go in `src-tauri/src/limits.rs` and `src/lib/limits.ts`, then into `docs/ARCHITECTURE.md`.
 - New IPC is unfinished until the command, the bridge function, and the TypeScript type all exist.
-- Stay on the React version already in `package.json`. Virtualize lists. Keep tree pages and the filtered folder list in separate caches.
-- In `useFrame`, write refs and uniforms. Read the store with `useFileStore.getState()`. Do not uncapped the 60-sphere graph. No bloom pass unless `docs/ARCHITECTURE.md` records a measured FPS note.
+- Stay on the React version already in `package.json`. Virtualize lists. Keep tree pages and the filtered folder list in separate caches. Focus pages ancestors from the scan root downward.
+- In `useFrame`, write refs and uniforms. Read the store with `useFileStore.getState()`. Do not uncapped the 60-sphere graph. No bloom pass unless `docs/ARCHITECTURE.md` records a measured FPS note. `OrganicGraph2D` calls `finishDrain` once when a drain ends.
