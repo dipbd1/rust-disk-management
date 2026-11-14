@@ -3,7 +3,7 @@ import { errorMessage, formatBytes } from "../lib/format";
 import { isDriveRoot } from "../lib/paths";
 import { copyPath, permanentDelete, revealInExplorer, trashPath, watchPath } from "../services/tauriBridge";
 import { applyDelete, nodeByPath } from "./cache";
-import { loadGraph, refreshList } from "./navActions";
+import { loadGraph, refreshList, watchFocused } from "./navActions";
 import { trashLocks } from "./session";
 import type { FileStore } from "./types";
 import type { StoreApi } from "zustand";
@@ -50,7 +50,7 @@ async function commit(set: SetFile, get: GetFile, path: string, mode: "trash" | 
       if (focus !== before) {
         try {
           await refreshList(set, get, focus, get().query);
-          await watchPath(focus);
+          await watchPath(watchFocused(get, focus));
         } catch (error) {
           set({ toast: errorMessage(error) });
         }

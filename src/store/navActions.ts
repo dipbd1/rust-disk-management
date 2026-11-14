@@ -64,6 +64,15 @@ function chainFromScanRoot(chain: string[], rootId: string | null): string[] {
   return start >= 0 ? chain.slice(start) : chain;
 }
 
+/** A file has no directory to watch. Watch the folder that contains it. */
+export function watchFocused(get: GetFile, id: string): string {
+  const known = nodeByPath(get().nodes, id);
+  if (!known || known.kind !== "file") return id;
+  if (known.parentId) return known.parentId;
+  const chain = ancestorChain(id);
+  return chain.length >= 2 ? chain[chain.length - 2] : id;
+}
+
 export async function focusNode(set: SetFile, get: GetFile, id: string): Promise<void> {
   const gen = ++session.focus;
   const chain = chainFromScanRoot(ancestorChain(id), get().rootId);
@@ -81,7 +90,7 @@ export async function focusNode(set: SetFile, get: GetFile, id: string): Promise
     await Promise.all([refreshList(set, get, id, get().query), loadGraph(set, get, id)]);
     if (gen !== session.focus) return;
     try {
-      await watchPath(id);
+      await watchPath(watchFocused(get, id));
     } catch (error) {
       if (gen !== session.focus) return;
       set({ toast: errorMessage(error) });

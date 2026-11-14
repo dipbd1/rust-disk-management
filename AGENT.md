@@ -44,7 +44,7 @@ Forbidden drift:
 - **Cancellation:** `Arc<AtomicBool>` shared with `cancel_scan`. Relaxed ordering is enough. A generation counter discards a scan that a newer one replaced. Store the partial index on cancel.
 - **Safe deletions:** Default user deletes go through the `trash` crate. `std::fs::remove_file` / `remove_dir_all` run only inside `permanent_delete`, after the UI confirmation modal. Never delete a drive root (`C:\`). Reclaim and duplicate review call `trash_indexed` only. Emptying the Recycle Bin uses `SHEmptyRecycleBinW`. The never-delete guard refuses `\Windows\` (reclaim may still recycle the named safe caches), `\Program Files\`, `\Program Files (x86)\`, and drive roots. Duplicate review does not use the Windows-cache exception.
 - **Windows paths:** Normalize with `services/paths.rs` before a path is stored or sent to the UI. One function, no ad-hoc slash logic in components.
-- **Watcher:** `notify` watches the focused folder non-recursively and emits `fs-stale`. It must not start a second scanner.
+- **Watcher:** `notify` watches the focused folder non-recursively, or the parent folder when a file is focused, and emits `fs-stale`. It must not start a second scanner.
 
 ## 3. React and TypeScript rules
 

@@ -26,6 +26,7 @@ A high-performance desktop storage analyzer and file management utility for Wind
   - Permanently Delete (with confirmation prompt)
   - Copy Full Path
 - **FR-3.4:** The left column shall contain the virtualized folder tree and a docked selection-details panel. The panel collapses to its header and resizes vertically against the tree.
+- **FR-3.5:** A single click on a folder or file already in the current 2D view selects it and centers that ball. The other balls stay. A single click that moves to a different folder opens that folder and its children. A double click opens the folder or file. A click during a scan selects the row and does not open it.
 
 #### FR-4: Right Pane — 3D Liquid Sphere Graph
 - **FR-4.1:** The right pane shall render the currently focused folder as a central 3D sphere and its immediate children as connected satellite spheres using a 3D force-directed layout (`d3-force-3d`).
@@ -33,7 +34,7 @@ A high-performance desktop storage analyzer and file management utility for Wind
 - **FR-4.3:** Each sphere shall display an internal GLSL liquid shader:
   - Fill height (`0.05` to `0.95`) represents the node's percentage share of the focused parent folder.
   - Liquid color maps to the dominant file category or folder state.
-- **FR-4.4:** Clicking a child folder sphere in 3D shall transition it to become the new central focused sphere, updating the left-pane tree selection simultaneously.
+- **FR-4.4:** A single click on a sphere selects it and centers that ball. The other balls stay. A double click opens a folder or file, and a folder becomes the new central sphere with its children. The left-pane tree selection updates with either gesture.
 - **FR-4.5:** To guarantee frame rate stability, the 3D graph shall render a maximum of 60 active child spheres at once; remaining smaller items in the focused directory shall be grouped into an aggregated "Other Files" sphere that can be expanded on demand.
 
 #### FR-5: Safe File Operations & State Sync

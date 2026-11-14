@@ -56,6 +56,13 @@ interface TransitionState {
   panEnd: { x: number; y: number };
 }
 
+interface PanGlide {
+  startTime: number;
+  duration: number;
+  panStart: { x: number; y: number };
+  panEnd: { x: number; y: number };
+}
+
 interface BallAnimState {
   currentRadius: number;
   targetRadius: number;
@@ -147,8 +154,10 @@ function clampPan(
   // Limit panning so the scene cannot be dragged away indefinitely.
   // At zoom=1, maxDistance from center ensures the arena remains largely in view.
   // At higher zoom, maxDistance expands to allow inspecting edge nodes.
-  const maxDistanceX = Math.max(canvasWidth * 0.45, visualRadius * 0.75);
-  const maxDistanceY = Math.max(canvasHeight * 0.45, visualRadius * 0.75);
+  // Far enough that a selected ball on the outer orbit can sit in the middle.
+  const reach = boundaryRadius * zoom + 140;
+  const maxDistanceX = Math.max(canvasWidth * 0.45, visualRadius * 0.75, reach);
+  const maxDistanceY = Math.max(canvasHeight * 0.45, visualRadius * 0.75, reach);
 
   const minX = centerX - maxDistanceX;
   const maxX = centerX + maxDistanceX;
@@ -200,6 +209,7 @@ export function OrganicGraph2D() {
   const categoryFilter = useVisualizerStore((state) => state.categoryFilter);
   const setHoveredNodeId = useVisualizerStore((state) => state.setHoveredNodeId);
   const resetCameraTrigger = useVisualizerStore((state) => state.resetCameraTrigger);
+  const centerViewTrigger = useVisualizerStore((state) => state.centerViewTrigger);
   const triggerTreeReveal = useVisualizerStore((state) => state.triggerTreeReveal);
 
   // Pan & Zoom
@@ -240,6 +250,9 @@ export function OrganicGraph2D() {
   // Transition animation management
   const prevFocusIdRef = useRef<string | null>(null);
   const transitionRef = useRef<TransitionState | null>(null);
+  const recenterRef = useRef<PanGlide | null>(null);
+  const pendingCenterRef = useRef<string | null>(null);
+  const centerMissRef = useRef(0);
   const ballPositionsRef = useRef<Map<string, { x: number; y: number; radius: number }>>(new Map());
   const slotAnglesRef = useRef<Map<string, number>>(new Map());
   const boundaryRadiusRef = useRef(380);
@@ -302,6 +315,13 @@ export function OrganicGraph2D() {
     resetView();
   }, [resetCameraTrigger, resetView]);
 
+  // Remember which ball should move to the canvas center. The frame loop pans once that ball has a position.
+  useEffect(() => {
+    if (centerViewTrigger === 0) return;
+    pendingCenterRef.current = useVisualizerStore.getState().centerNodeId;
+    centerMissRef.current = 0;
+  }, [centerViewTrigger]);
+
   // Trigger smooth transition when focus changes to another ball
   useEffect(() => {
     if (!graphView?.focus) return;
@@ -311,6 +331,7 @@ export function OrganicGraph2D() {
       slotFocusRef.current === newFocusId || slotFocusRef.current === newFocusPath;
 
     if (prevFocusIdRef.current && prevFocusIdRef.current !== newFocusId && !hubAlreadyOnScreen) {
+      recenterRef.current = null;
       // Find where this node was currently located in the visualizer layout
       const prevPos =
         ballPositionsRef.current.get(newFocusId) ||
@@ -437,6 +458,33 @@ export function OrganicGraph2D() {
 
         if (transitionProgress >= 1.0) {
           transitionRef.current = null;
+          if (!isDraggingRef.current) {
+            const settled = { x: panRef.current.x, y: panRef.current.y };
+            setPan((prev) => (prev.x === settled.x && prev.y === settled.y ? prev : settled));
+          }
+        }
+      }
+
+      const glide = recenterRef.current;
+      if (glide && !trans && !isDraggingRef.current) {
+        const elapsed = now - glide.startTime;
+        const glideProgress = Math.min(1, Math.max(0, elapsed / glide.duration));
+        const panE = easeInOutCubic(glideProgress);
+        const clamped = clampPan(
+          {
+            x: glide.panStart.x + (glide.panEnd.x - glide.panStart.x) * panE,
+            y: glide.panStart.y + (glide.panEnd.y - glide.panStart.y) * panE,
+          },
+          zoomRef.current,
+          width,
+          height,
+          boundaryRadius,
+        );
+        panRef.current.x = clamped.x;
+        panRef.current.y = clamped.y;
+        if (glideProgress >= 1) {
+          recenterRef.current = null;
+          setPan((prev) => (prev.x === clamped.x && prev.y === clamped.y ? prev : clamped));
         }
       }
 
@@ -954,6 +1002,28 @@ export function OrganicGraph2D() {
         }
       }
 
+      const pendingId = pendingCenterRef.current;
+      if (pendingId && !transitionRef.current && !recenterRef.current && !isDraggingRef.current) {
+        const pos = ballPositionsRef.current.get(pendingId);
+        if (pos) {
+          pendingCenterRef.current = null;
+          centerMissRef.current = 0;
+          const zoom = zoomRef.current;
+          recenterRef.current = {
+            startTime: now,
+            duration: 780,
+            panStart: { x: panRef.current.x, y: panRef.current.y },
+            panEnd: { x: width / 2 - pos.x * zoom, y: height / 2 - pos.y * zoom },
+          };
+        } else {
+          centerMissRef.current += 1;
+          if (centerMissRef.current > 45) {
+            pendingCenterRef.current = null;
+            centerMissRef.current = 0;
+          }
+        }
+      }
+
       ctx.restore(); // Restore world transform
 
       // 8. Render Holographic Hover Tooltip if hovering over any node
@@ -971,6 +1041,11 @@ export function OrganicGraph2D() {
 
   // Pointer Interaction Handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (recenterRef.current) {
+      recenterRef.current = null;
+      const current = { x: panRef.current.x, y: panRef.current.y };
+      setPan((prev) => (prev.x === current.x && prev.y === current.y ? prev : current));
+    }
     isDraggingRef.current = true;
     hasMovedRef.current = false;
     dragStartRef.current = {
@@ -1080,10 +1155,12 @@ export function OrganicGraph2D() {
 
   const enterFolder = (node: FileNode) => {
     if (scanStatusRef.current === "scanning") {
-      useFileStore.setState({ toast: "Scanning in progress. Please wait." });
+      if (node.kind === "folder" && node.id !== hubRef.current?.node.id) {
+        useFileStore.setState({ toast: "Scanning in progress. Please wait." });
+      }
       return;
     }
-    if (node.kind === "folder") void focusNode(node.id);
+    if (node.kind === "folder" || node.kind === "file") void focusNode(node.id);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1136,7 +1213,13 @@ export function OrganicGraph2D() {
       if (clickedNode) {
         selectNode(clickedNode.id);
         triggerTreeReveal();
-        enterFolder(clickedNode);
+        if (scanStatusRef.current === "scanning") {
+          if (clickedNode.kind === "folder" && clickedNode.id !== hubRef.current?.node.id) {
+            useFileStore.setState({ toast: "Scanning in progress. Please wait." });
+          }
+        } else {
+          useVisualizerStore.getState().triggerCenterNode(clickedNode.id);
+        }
       }
     }
   };
@@ -1151,28 +1234,28 @@ export function OrganicGraph2D() {
     const worldX = (mouseX - panRef.current.x) / zoomRef.current;
     const worldY = (mouseY - panRef.current.y) / zoomRef.current;
 
-    let targetFolder: FileNode | null = null;
+    let target: FileNode | null = null;
 
     for (const child of renderNodesRef.current) {
       for (const sat of child.satellites) {
-        if (sat.node.kind === "folder" && Math.hypot(worldX - sat.x, worldY - sat.y) <= sat.radius + 6) {
-          targetFolder = sat.node;
+        if ((sat.node.kind === "folder" || sat.node.kind === "file") && Math.hypot(worldX - sat.x, worldY - sat.y) <= sat.radius + 6) {
+          target = sat.node;
           break;
         }
       }
-      if (targetFolder) break;
+      if (target) break;
     }
 
-    if (!targetFolder) {
+    if (!target) {
       for (const child of renderNodesRef.current) {
-        if (child.node.kind === "folder" && Math.hypot(worldX - child.x, worldY - child.y) <= child.radius + 6) {
-          targetFolder = child.node;
+        if ((child.node.kind === "folder" || child.node.kind === "file") && Math.hypot(worldX - child.x, worldY - child.y) <= child.radius + 6) {
+          target = child.node;
           break;
         }
       }
     }
 
-    if (targetFolder) enterFolder(targetFolder);
+    if (target) enterFolder(target);
   };
 
   // Smooth Zoom Centered at Cursor

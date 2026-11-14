@@ -31,7 +31,7 @@ If this file and those docs ever disagree, follow the docs and update this file.
 - Heavy work uses `tauri::async_runtime::spawn_blocking`. Stream `ScanProgress` on `tauri::ipc::Channel` in the webview, and emit `scan-progress` with `EmitterExt` for the browser socket. The browser command returns immediately and the page waits for `done`. The remote-ui server starts only in debug builds. The scanner takes a progress callback so tests do not need a Tauri runtime.
 - Cancel with `Arc<AtomicBool>` (relaxed). A generation counter stops an older scan from overwriting a newer index. On cancel, keep the partial index and return `Ok` with `cancelled: true`.
 - `trash_path` uses the `trash` crate. Never delete a drive root (`C:\`). Reclaim and duplicate review never call `permanent_delete`. Duplicate results never include never-delete prefixes, and they have no Windows-cache exception. Insight results never merge into `childPages`. The growth file is not the tree. The area map does not raise `GRAPH_CHILD_CAP`.
-- `notify` watches the focused folder non-recursively, debounces, and emits `fs-stale`. It does not start a scan.
+- `notify` watches the focused folder non-recursively, or the parent folder when a file is focused, debounces, and emits `fs-stale`. It does not start a scan.
 - `AppError` (`thiserror`) serializes as a string. Commands return `Result<T, AppError>`.
 - Rust structs use `#[serde(rename_all = "camelCase")]`. TypeScript mirrors live in `src/types/filesystem.ts`. No `any`.
 - Keep files under about 250 lines. New constants go in `src-tauri/src/limits.rs` and `src/lib/limits.ts`, then into `docs/ARCHITECTURE.md`.

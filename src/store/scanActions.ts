@@ -2,7 +2,7 @@ import { CHILD_PAGE_SIZE } from "../lib/limits";
 import { diskUsedRatio, errorMessage } from "../lib/format";
 import { cancelScan, elevationStatus, getChildren, growthDelta, listDrives, onFsStale, relaunchElevated, startScan, watchPath } from "../services/tauriBridge";
 import { applyIndexPage, applyPreview, placeholderNode } from "./cache";
-import { loadGraph, refreshList } from "./navActions";
+import { loadGraph, refreshList, watchFocused } from "./navActions";
 import { session } from "./session";
 import type { FileStore } from "./types";
 import type { StoreApi } from "zustand";
@@ -160,7 +160,7 @@ async function settleScan(set: SetFile, get: GetFile, token: number, cancelled: 
     set({ toast: errorMessage(error) });
   }
   try {
-    await watchPath(focus);
+    await watchPath(watchFocused(get, focus));
   } catch (error) {
     if (token !== session.scan) return;
     set({ toast: errorMessage(error) });
