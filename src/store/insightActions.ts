@@ -8,7 +8,7 @@ import {
   pickScanFolder,
   searchIndex,
 } from "../services/tauriBridge";
-import type { FileNode, InsightPage } from "../types/filesystem";
+import type { FileNode, InsightPage, LargestOrder } from "../types/filesystem";
 import { upsert } from "./cache";
 import { focusNode } from "./navActions";
 import { scanDrive } from "./scanActions";
@@ -29,10 +29,11 @@ function mergePage(previous: InsightPage | null, page: InsightPage): InsightPage
   return { ...page, nodes };
 }
 
-export async function loadLargest(set: SetFile): Promise<void> {
+export async function loadLargest(set: SetFile, order: LargestOrder): Promise<void> {
   const gen = ++session.insight;
+  set({ largestPage: null });
   try {
-    const page = await largestFiles(0, INSIGHT_PAGE_SIZE);
+    const page = await largestFiles(0, INSIGHT_PAGE_SIZE, order.sort, order.descending);
     if (gen !== session.insight) return;
     set((state) => ({ largestPage: page, nodes: upsert(state.nodes, page.nodes) }));
   } catch (error) {
@@ -41,12 +42,12 @@ export async function loadLargest(set: SetFile): Promise<void> {
   }
 }
 
-export async function loadMoreLargest(set: SetFile, get: GetFile): Promise<void> {
+export async function loadMoreLargest(set: SetFile, get: GetFile, order: LargestOrder): Promise<void> {
   const current = get().largestPage;
   if (!current || current.nodes.length >= current.total) return;
   const gen = session.insight;
   try {
-    const page = await largestFiles(current.nodes.length, INSIGHT_PAGE_SIZE);
+    const page = await largestFiles(current.nodes.length, INSIGHT_PAGE_SIZE, order.sort, order.descending);
     if (gen !== session.insight) return;
     const merged = mergePage(get().largestPage, page);
     set((state) => ({ largestPage: merged, nodes: upsert(state.nodes, page.nodes) }));

@@ -73,6 +73,13 @@ export interface InsightPage {
   nodes: FileNode[];
 }
 
+export type LargestSort = "size" | "name" | "folder";
+
+export interface LargestOrder {
+  sort: LargestSort;
+  descending: boolean;
+}
+
 export interface ExtensionRow {
   extension: string;
   count: number;

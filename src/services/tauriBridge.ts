@@ -12,6 +12,7 @@ import type {
   GraphView,
   GrowthDelta,
   InsightPage,
+  LargestSort,
   ReclaimReport,
   RecycleBatch,
   ScanProgress,
@@ -128,8 +129,8 @@ export function relaunchElevated(): Promise<boolean> {
   return invoke<boolean>("relaunch_elevated");
 }
 
-export function largestFiles(offset: number, limit: number): Promise<InsightPage> {
-  return invoke<InsightPage>("largest_files", { offset, limit });
+export function largestFiles(offset: number, limit: number, sort: LargestSort, descending: boolean): Promise<InsightPage> {
+  return invoke<InsightPage>("largest_files", { offset, limit, sort, descending });
 }
 
 export function searchIndex(query: string, offset: number, limit: number): Promise<InsightPage> {

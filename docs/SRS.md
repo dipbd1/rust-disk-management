@@ -42,7 +42,7 @@ A high-performance desktop storage analyzer and file management utility for Wind
 - **FR-5.2:** Upon successful deletion, the backend shall return the freed byte count, and the frontend shall subtract that size up the ancestor tree in O(depth) time without requiring a full disk re-scan.
 
 #### FR-6: Find the space
-- **FR-6.1:** Largest files are a size-descending page from `ScanIndex` (default 400, clamp 1000). Choosing a row selects that file and focuses its parent in the graph.
+- **FR-6.1:** Largest files are a page from `ScanIndex` (default 400, clamp 1000). The default order is size descending. Name order is alphabetical, with larger files first when names tie. Folder order groups by parent path, then largest file in that folder. Each order can run in the other direction, and the order is applied to the full scan before paging. Choosing a row selects that file and focuses its parent in the graph. Opening the Largest tab does not load this list. A Scan button at the top of the section starts or restarts the active drive, or the first fixed drive when none is active. After that scan is ready, or once entries are listed, the bar shows Re-scan, Size, Name, and Folder. Re-scan starts the drive again.
 - **FR-6.2:** Search matches file and folder names anywhere in the scan, paged the same way. Results stay in their own store slice, separate from tree pages and the hidden folder list.
 - **FR-6.3:** Types are the top 12 extensions by bytes plus one Other row (count and bytes). Choosing a row opens a paged file list for that extension, including Other.
 - **FR-6.4:** A top-bar Folder action opens the native folder dialog. A drive root still uses the Master File Table when the process is elevated. Every other path uses the folder walk.

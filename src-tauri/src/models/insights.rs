@@ -10,6 +10,14 @@ pub struct InsightPage {
     pub nodes: Vec<FileNode>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LargestSort {
+    Size,
+    Name,
+    Folder,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtensionRow {

@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::models::LargestSort;
+
 fn index_with(files: &[(&str, u64)]) -> ScanIndex {
     let mut index = ScanIndex::new(1);
     index.insert("C:\\data", true, 0).unwrap();
@@ -33,17 +35,72 @@ fn largest_files_page_and_clamp() {
     }
     index.sort_children();
     let mut cache = None;
-    let first = largest_files(&index, &mut cache, 0, 0).unwrap();
+    let first = largest_files(&index, &mut cache, 0, 0, LargestSort::Size, true).unwrap();
     assert_eq!(first.total, 1001);
     assert_eq!(first.nodes.len(), 400);
     assert_eq!(first.nodes[0].size_bytes, 1001);
     assert_eq!(first.nodes[399].size_bytes, 602);
-    let next = largest_files(&index, &mut cache, 400, 400).unwrap();
+    let next = largest_files(&index, &mut cache, 400, 400, LargestSort::Size, true).unwrap();
     assert_eq!(next.nodes.len(), 400);
     assert_eq!(next.nodes[0].size_bytes, 601);
-    let clamped = largest_files(&index, &mut cache, 0, 5000).unwrap();
+    let clamped = largest_files(&index, &mut cache, 0, 5000, LargestSort::Size, true).unwrap();
     assert_eq!(clamped.nodes.len(), 1000);
     assert_eq!(clamped.total, 1001);
+}
+
+#[test]
+fn largest_name_and_folder_orders_differ_from_size() {
+    let index = index_with(&[
+        ("C:\\data\\z\\zebra.txt", 500),
+        ("C:\\data\\a\\middle.txt", 100),
+        ("C:\\data\\a\\alpha.txt", 10),
+        ("C:\\data\\a\\same.bin", 80),
+        ("C:\\data\\b\\same.bin", 40),
+    ]);
+    let mut cache = None;
+    let by_size = largest_files(&index, &mut cache, 0, 10, LargestSort::Size, true).unwrap();
+    assert_eq!(
+        paths_of(&by_size),
+        vec![
+            "C:\\data\\z\\zebra.txt",
+            "C:\\data\\a\\middle.txt",
+            "C:\\data\\a\\same.bin",
+            "C:\\data\\b\\same.bin",
+            "C:\\data\\a\\alpha.txt",
+        ]
+    );
+    let by_name = largest_files(&index, &mut cache, 0, 10, LargestSort::Name, false).unwrap();
+    assert_eq!(
+        paths_of(&by_name),
+        vec![
+            "C:\\data\\a\\alpha.txt",
+            "C:\\data\\a\\middle.txt",
+            "C:\\data\\a\\same.bin",
+            "C:\\data\\b\\same.bin",
+            "C:\\data\\z\\zebra.txt",
+        ]
+    );
+    let by_name_desc = largest_files(&index, &mut cache, 0, 10, LargestSort::Name, true).unwrap();
+    assert_eq!(paths_of(&by_name_desc)[0], "C:\\data\\z\\zebra.txt");
+    assert_eq!(paths_of(&by_name_desc)[1], "C:\\data\\a\\same.bin");
+    let by_folder = largest_files(&index, &mut cache, 0, 10, LargestSort::Folder, false).unwrap();
+    assert_eq!(
+        paths_of(&by_folder),
+        vec![
+            "C:\\data\\a\\middle.txt",
+            "C:\\data\\a\\same.bin",
+            "C:\\data\\a\\alpha.txt",
+            "C:\\data\\b\\same.bin",
+            "C:\\data\\z\\zebra.txt",
+        ]
+    );
+    let by_folder_desc = largest_files(&index, &mut cache, 0, 10, LargestSort::Folder, true).unwrap();
+    assert_eq!(paths_of(&by_folder_desc)[0], "C:\\data\\z\\zebra.txt");
+    assert_eq!(paths_of(&by_folder_desc)[1], "C:\\data\\b\\same.bin");
+}
+
+fn paths_of(page: &crate::models::InsightPage) -> Vec<&str> {
+    page.nodes.iter().map(|node| node.path.as_str()).collect()
 }
 
 #[test]

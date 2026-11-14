@@ -8,7 +8,8 @@ use tauri_remote_ui::EmitterExt;
 
 use crate::error::AppError;
 use crate::models::{
-    BinEmptyResult, DuplicateProgress, ExtensionRollup, GrowthDelta, InsightPage, ReclaimReport, RecycleBatch,
+    BinEmptyResult, DuplicateProgress, ExtensionRollup, GrowthDelta, InsightPage, LargestSort, ReclaimReport,
+    RecycleBatch,
 };
 use crate::services::{deletion, duplicates, insights, reclaim, recycle_bin};
 use crate::state::AppState;
@@ -21,8 +22,10 @@ pub fn largest_files(
     app_state: State<'_, Arc<AppState>>,
     offset: u32,
     limit: u32,
+    sort: LargestSort,
+    descending: bool,
 ) -> Result<InsightPage, AppError> {
-    app_state.with_insight(|index, cache| insights::largest_files(index, cache, offset, limit))
+    app_state.with_insight(|index, cache| insights::largest_files(index, cache, offset, limit, sort, descending))
 }
 
 #[tauri::command]

@@ -7,27 +7,6 @@ function ready(status: string): boolean {
   return status === "ready" || status === "cancelled";
 }
 
-export function LargestPanel() {
-  const scanStatus = useFileStore((state) => state.scanStatus);
-  const page = useFileStore((state) => state.largestPage);
-  const loadLargest = useFileStore((state) => state.loadLargest);
-  const loadMoreLargest = useFileStore((state) => state.loadMoreLargest);
-  const openLocated = useFileStore((state) => state.openLocated);
-  useEffect(() => {
-    if (ready(scanStatus) && !page) void loadLargest();
-  }, [scanStatus, page, loadLargest]);
-  if (!ready(scanStatus)) return <p className="px-3 py-4 text-sm text-slate-500">Finish a scan to list the largest files.</p>;
-  return (
-    <NodePage
-      nodes={page?.nodes ?? []}
-      total={page?.total ?? 0}
-      empty="No files in this scan."
-      onOpen={(node) => void openLocated(node)}
-      onLoadMore={() => void loadMoreLargest()}
-    />
-  );
-}
-
 export function SearchPanel() {
   const scanStatus = useFileStore((state) => state.scanStatus);
   const page = useFileStore((state) => state.searchPage);

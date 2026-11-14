@@ -6,6 +6,7 @@ import type {
   GraphView,
   GrowthDelta,
   InsightPage,
+  LargestOrder,
   ReclaimReport,
   ScanProgress,
 } from "../types/filesystem";
@@ -102,8 +103,8 @@ export interface FileActions {
   continueWithoutElevation: (remember: boolean) => Promise<void>;
   restartElevated: () => Promise<void>;
   setLeftTab: (tab: LeftTab) => void;
-  loadLargest: () => Promise<void>;
-  loadMoreLargest: () => Promise<void>;
+  loadLargest: (order: LargestOrder) => Promise<void>;
+  loadMoreLargest: (order: LargestOrder) => Promise<void>;
   searchWhole: (query: string) => Promise<void>;
   loadMoreSearch: (query: string) => Promise<void>;
   loadExtensions: () => Promise<void>;

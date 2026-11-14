@@ -2,9 +2,10 @@
 
 use crate::error::AppError;
 use crate::limits::{self, page_limit};
-use crate::models::{ExtensionRollup, ExtensionRow, InsightPage, NodeKind};
+use crate::models::{ExtensionRollup, ExtensionRow, InsightPage, LargestSort, NodeKind};
 use crate::services::category::file_extension;
 use crate::services::index::ScanIndex;
+use crate::services::paths::ready_parent;
 
 use super::InsightCache;
 
@@ -13,9 +14,50 @@ pub fn largest_files(
     slot: &mut Option<InsightCache>,
     offset: u32,
     limit: u32,
+    sort: LargestSort,
+    descending: bool,
 ) -> Result<InsightPage, AppError> {
     let cache = ensure(index, slot)?;
-    Ok(page_of(index, &cache.files_desc, offset, limit))
+    if sort == LargestSort::Size && descending {
+        return Ok(page_of(index, &cache.files_desc, offset, limit));
+    }
+    if cache.order_sort != Some(sort) || cache.order_desc != descending {
+        cache.order = build_order(index, &cache.files_desc, sort, descending);
+        cache.order_sort = Some(sort);
+        cache.order_desc = descending;
+    }
+    Ok(page_of(index, &cache.order, offset, limit))
+}
+
+fn build_order(index: &ScanIndex, files: &[u32], sort: LargestSort, descending: bool) -> Vec<u32> {
+    let mut keys: Vec<(u64, String, String, u32)> = files
+        .iter()
+        .map(|id| {
+            let size = index.size_at(*id).unwrap_or(0);
+            let name = index.name_at(*id).unwrap_or("").to_ascii_lowercase();
+            let parent = if sort == LargestSort::Folder {
+                index.path_at(*id).and_then(ready_parent).unwrap_or("").to_ascii_lowercase()
+            } else {
+                String::new()
+            };
+            (size, name, parent, *id)
+        })
+        .collect();
+    keys.sort_by(|a, b| match sort {
+        LargestSort::Size => {
+            let size = if descending { b.0.cmp(&a.0) } else { a.0.cmp(&b.0) };
+            size.then_with(|| a.1.cmp(&b.1))
+        }
+        LargestSort::Name => {
+            let name = if descending { b.1.cmp(&a.1) } else { a.1.cmp(&b.1) };
+            name.then_with(|| b.0.cmp(&a.0))
+        }
+        LargestSort::Folder => {
+            let folder = if descending { b.2.cmp(&a.2) } else { a.2.cmp(&b.2) };
+            folder.then_with(|| b.0.cmp(&a.0)).then_with(|| a.1.cmp(&b.1))
+        }
+    });
+    keys.into_iter().map(|(_, _, _, id)| id).collect()
 }
 
 pub fn search_index(
@@ -166,6 +208,9 @@ fn build(index: &ScanIndex, revision: u64) -> InsightCache {
         top,
         search_key: String::new(),
         search_hits: Vec::new(),
+        order_sort: None,
+        order_desc: false,
+        order: Vec::new(),
     }
 }
 
