@@ -50,6 +50,22 @@ body,
   background: transparent;
 }
 
+/* The pane tab row is 32px. A scrollbar here would sit inside that strip,
+   so this scroller hides its bar and uses edge chevrons instead.
+   scrollbar-width is set only on this class. The global rule above stays
+   on the webkit pseudo-elements, because a scrollbar-color on * makes
+   Chromium drop those rules. */
+.pane-tabs-scroll {
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.pane-tabs-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 body {
   font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
 }
