@@ -1078,6 +1078,14 @@ export function OrganicGraph2D() {
     canvas.style.cursor = hit ? "pointer" : isDraggingRef.current ? "grabbing" : "default";
   };
 
+  const enterFolder = (node: FileNode) => {
+    if (scanStatusRef.current === "scanning") {
+      useFileStore.setState({ toast: "Scanning in progress. Please wait." });
+      return;
+    }
+    if (node.kind === "folder") void focusNode(node.id);
+  };
+
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     isDraggingRef.current = false;
     try {
@@ -1128,9 +1136,7 @@ export function OrganicGraph2D() {
       if (clickedNode) {
         selectNode(clickedNode.id);
         triggerTreeReveal();
-        if (clickedNode.kind === "folder" && scanStatusRef.current !== "scanning") {
-          void focusNode(clickedNode.id);
-        }
+        enterFolder(clickedNode);
       }
     }
   };
@@ -1166,9 +1172,7 @@ export function OrganicGraph2D() {
       }
     }
 
-    if (targetFolder && scanStatusRef.current !== "scanning") {
-      void focusNode(targetFolder.id);
-    }
+    if (targetFolder) enterFolder(targetFolder);
   };
 
   // Smooth Zoom Centered at Cursor

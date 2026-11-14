@@ -13,7 +13,7 @@ export function Toast() {
 
   if (!toast) return null;
   return (
-    <div role="status" className="fixed bottom-4 left-4 z-50 max-w-sm rounded-lg border border-white/10 bg-slate-900/90 px-3 py-2 text-sm text-slate-100 shadow-xl">
+    <div role="status" className="fixed top-14 left-1/2 z-50 max-w-sm -translate-x-1/2 rounded-full bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg">
       {toast}
     </div>
   );
