@@ -496,7 +496,6 @@ export function OrganicGraph2D() {
         chrome.fade,
         chrome.count,
         chrome.path,
-        sceneFocus?.name || activeDrive || "C:",
       );
 
       // 2. Cosmic Stardust Particles
@@ -1227,7 +1226,6 @@ function drawSceneBoundary(
   scanFade: number,
   scannedCount: number,
   currentPath: string,
-  focusName: string,
 ) {
   const isScanning = scanFade > 0.02;
   ctx.save();
@@ -1406,105 +1404,35 @@ function drawSceneBoundary(
     ctx.strokeStyle = isMajor ? "rgba(0, 240, 255, 0.65)" : "rgba(56, 189, 248, 0.25)";
     ctx.stroke();
   }
-
-  // Cardinal direction ticks & badges
-  const cardinals = [
-    { label: "000° // N", angle: -Math.PI / 2 },
-    { label: "090° // E", angle: 0 },
-    { label: "180° // S", angle: Math.PI / 2 },
-    { label: "270° // W", angle: Math.PI },
-  ];
-  ctx.font = "bold 9px monospace";
-  ctx.fillStyle = "rgba(186, 230, 253, 0.7)";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  for (const card of cardinals) {
-    const textR = boundaryRadius + 14;
-    const tx = Math.cos(card.angle) * textR;
-    const ty = Math.sin(card.angle) * textR;
-    ctx.fillText(card.label, tx, ty);
-  }
   ctx.restore();
 
-  // 6. Cybernetic Corner Framing Brackets
-  const bracketOffset = boundaryRadius + 22;
-  const bracketArm = 28;
-
-  ctx.save();
-  ctx.strokeStyle = "rgba(0, 240, 255, 0.4)";
-  ctx.lineWidth = 1.5;
-  ctx.fillStyle = "rgba(14, 165, 233, 0.8)";
-  ctx.font = "bold 10px monospace";
-
-  // Top-Left Bracket
-  ctx.beginPath();
-  ctx.moveTo(-bracketOffset, -bracketOffset + bracketArm);
-  ctx.lineTo(-bracketOffset, -bracketOffset);
-  ctx.lineTo(-bracketOffset + bracketArm, -bracketOffset);
-  ctx.stroke();
-  ctx.textAlign = "left";
-  ctx.textBaseline = "bottom";
-  ctx.fillText("┌ SEC.CORE // " + (focusName || "ROOT"), -bracketOffset + 6, -bracketOffset - 4);
-
-  // Top-Right Bracket
-  ctx.beginPath();
-  ctx.moveTo(bracketOffset - bracketArm, -bracketOffset);
-  ctx.lineTo(bracketOffset, -bracketOffset);
-  ctx.lineTo(bracketOffset, -bracketOffset + bracketArm);
-  ctx.stroke();
-  ctx.textAlign = "right";
-  ctx.fillText(`FIELD: ${Math.round(boundaryRadius)}R // 2D-FLUID ┐`, bracketOffset - 6, -bracketOffset - 4);
-
-  // Bottom-Left Bracket (Live Scanning Status)
-  ctx.beginPath();
-  ctx.moveTo(-bracketOffset, bracketOffset - bracketArm);
-  ctx.lineTo(-bracketOffset, bracketOffset);
-  ctx.lineTo(-bracketOffset + bracketArm, bracketOffset);
-  ctx.stroke();
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
   if (scanFade > 0.02) {
+    const labelY = boundaryRadius + 26;
     ctx.save();
     ctx.globalAlpha = scanFade;
+    ctx.font = "bold 10px monospace";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
     ctx.fillStyle = "#38BDF8";
     ctx.shadowColor = "#00F0FF";
     ctx.shadowBlur = 8;
-    ctx.fillText(`└ ⚡ SCANNING: ${scannedCount.toLocaleString()} NODES`, -bracketOffset + 6, bracketOffset + 4);
+    ctx.fillText(`SCANNING: ${scannedCount.toLocaleString()} NODES`, -boundaryRadius, labelY);
     ctx.restore();
-  }
-  if (scanFade < 0.98) {
-    ctx.save();
-    ctx.globalAlpha = 1 - scanFade;
-    ctx.fillStyle = "rgba(148, 163, 184, 0.75)";
-    ctx.fillText(`└ ● STATUS: READY // MATRIX NOMINAL`, -bracketOffset + 6, bracketOffset + 4);
-    ctx.restore();
-  }
 
-  // Bottom-Right Bracket
-  ctx.beginPath();
-  ctx.moveTo(bracketOffset - bracketArm, bracketOffset);
-  ctx.lineTo(bracketOffset, bracketOffset);
-  ctx.lineTo(bracketOffset, bracketOffset - bracketArm);
-  ctx.stroke();
-  ctx.textAlign = "right";
-  ctx.fillStyle = "rgba(148, 163, 184, 0.75)";
-  ctx.fillText(`CONTAINMENT MATRIX ┘`, bracketOffset - 6, bracketOffset + 4);
-
-  if (scanFade > 0.02 && currentPath) {
-    const maxLen = 42;
-    const displayPath = currentPath.length > maxLen ? "…" + currentPath.slice(-maxLen) : currentPath;
-    ctx.save();
-    ctx.globalAlpha = scanFade;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.font = "9px monospace";
-    ctx.fillStyle = "rgba(56, 189, 248, 0.75)";
-    ctx.fillText(`>> SCAN PATH: ${displayPath}`, 0, bracketOffset + 18);
-    ctx.restore();
+    if (currentPath) {
+      const maxLen = 42;
+      const displayPath = currentPath.length > maxLen ? "…" + currentPath.slice(-maxLen) : currentPath;
+      ctx.save();
+      ctx.globalAlpha = scanFade;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.font = "9px monospace";
+      ctx.fillStyle = "rgba(56, 189, 248, 0.75)";
+      ctx.fillText(`SCAN PATH: ${displayPath}`, 0, labelY + 14);
+      ctx.restore();
+    }
   }
 
-  ctx.restore();
   ctx.restore();
 }
 
