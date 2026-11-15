@@ -48,7 +48,7 @@ A high-performance desktop storage analyzer and file management utility for Wind
 - **FR-6.4:** A top-bar Folder action opens the native folder dialog. A drive root still uses the Master File Table when the process is elevated. Every other path uses the folder walk.
 
 #### FR-7: Reclaim, with a sentence
-- **FR-7.1:** After a finished scan, Reclaim lists only catalog matches. Each row has a tier, the byte total, one sentence, and Reveal.
+- **FR-7.1:** Opening Reclaim does not scan. After a finished drive scan, a Scan button walks the index for catalog matches on a background thread, so the window stays responsive. Re-scan runs that pass again once rows are listed. Each row has a tier, the byte total, one sentence, and Reveal.
 - **FR-7.2:** Safe covers user Temp, Windows Temp, the Windows Update download cache, the Delivery Optimization cache, thumbnail cache files, and browser caches. They can be recycled together after one confirm that shows count and bytes.
 - **FR-7.3:** Rebuilds covers `node_modules`, the npm cache, the pip cache, the Cargo registry, and Steam shader caches outside protected folders. The confirm is the same shape. The sentence says the tool will recreate them.
 - **FR-7.4:** Review covers `Windows.old`, Downloads files of at least 100 MiB that are older than 30 days, and Docker or WSL virtual disks. One item at a time. There is no group clean.

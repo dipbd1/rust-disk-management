@@ -76,6 +76,7 @@ export interface FileData {
   extensionTarget: ExtensionTarget | null;
   extensionPage: InsightPage | null;
   reclaim: ReclaimReport | null;
+  reclaimBusy: boolean;
   duplicateRun: DuplicateRun | null;
   growth: GrowthDelta | null;
   recyclePrompt: RecyclePrompt | null;
@@ -152,6 +153,7 @@ export const initialData: FileData = {
   extensionTarget: null,
   extensionPage: null,
   reclaim: null,
+  reclaimBusy: false,
   duplicateRun: null,
   growth: null,
   recyclePrompt: null,

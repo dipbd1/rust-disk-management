@@ -69,7 +69,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   openExtension: (target) => openExtension(set, target),
   loadMoreExtension: () => loadMoreExtension(set, get),
   openLocated: (node) => openLocated(set, get, node),
-  loadReclaim: () => loadReclaim(set),
+  loadReclaim: () => loadReclaim(set, get),
   loadGrowth: () => loadGrowth(set),
   scanFolder: () => scanFolder(set, get),
   startDuplicates: () => startDuplicates(set, get),

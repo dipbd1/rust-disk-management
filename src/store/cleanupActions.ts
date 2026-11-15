@@ -15,11 +15,15 @@ import type { StoreApi } from "zustand";
 type SetFile = StoreApi<FileStore>["setState"];
 type GetFile = StoreApi<FileStore>["getState"];
 
-export async function loadReclaim(set: SetFile): Promise<void> {
+export async function loadReclaim(set: SetFile, get: GetFile): Promise<void> {
+  if (get().reclaimBusy) return;
+  set({ reclaimBusy: true });
   try {
     set({ reclaim: await reclaimReport() });
   } catch (error) {
     set({ toast: errorMessage(error) });
+  } finally {
+    set({ reclaimBusy: false });
   }
 }
 
@@ -70,7 +74,7 @@ export async function confirmRecycle(set: SetFile, get: GetFile): Promise<void> 
   try {
     if (prompt.kind === "reclaim") {
       applyBatch(set, await recycleReclaim(prompt.ids));
-      await loadReclaim(set);
+      await loadReclaim(set, get);
       return;
     }
     if (prompt.kind === "duplicates") {
@@ -80,7 +84,7 @@ export async function confirmRecycle(set: SetFile, get: GetFile): Promise<void> 
     }
     const emptied = await emptyRecycleBin();
     set({ toast: `Emptied the Recycle Bin · ${formatBytes(emptied.freedBytes)} freed` });
-    await loadReclaim(set);
+    await loadReclaim(set, get);
   } catch (error) {
     set({ toast: errorMessage(error) });
   }

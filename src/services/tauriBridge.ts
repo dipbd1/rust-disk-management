@@ -146,7 +146,38 @@ export function extensionFiles(extension: string, other: boolean, offset: number
 }
 
 export function reclaimReport(): Promise<ReclaimReport> {
-  return invoke<ReclaimReport>("reclaim_report");
+  if (inDesktopWebview()) return invoke<ReclaimReport>("reclaim_report");
+  return awaitBrowserReclaim();
+}
+
+function awaitBrowserReclaim(): Promise<ReclaimReport> {
+  let resolveScan: (report: ReclaimReport) => void = () => {};
+  let rejectScan: (error: unknown) => void = () => {};
+  const finished = new Promise<ReclaimReport>((resolve, reject) => {
+    resolveScan = resolve;
+    rejectScan = reject;
+  });
+  let settled = false;
+  const settle = (apply: () => void) => {
+    if (settled) return;
+    settled = true;
+    apply();
+  };
+  return (async () => {
+    const stopReport = await listen<ReclaimReport>("reclaim-report", (event) => {
+      settle(() => resolveScan(event.payload));
+    });
+    const stopError = await listen<string>("reclaim-error", (event) => {
+      settle(() => rejectScan(new Error(event.payload)));
+    });
+    try {
+      await invoke("reclaim_report_remote");
+      return await finished;
+    } finally {
+      stopReport();
+      stopError();
+    }
+  })();
 }
 
 export function recycleReclaim(ids: string[]): Promise<RecycleBatch> {

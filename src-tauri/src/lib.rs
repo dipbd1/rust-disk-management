@@ -45,6 +45,7 @@ pub fn run() {
             commands::insights_cmd::extension_rollup,
             commands::insights_cmd::extension_files,
             commands::insights_cmd::reclaim_report,
+            commands::insights_cmd::reclaim_report_remote,
             commands::insights_cmd::recycle_reclaim,
             commands::insights_cmd::empty_recycle_bin,
             commands::insights_cmd::growth_delta,

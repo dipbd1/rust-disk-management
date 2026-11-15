@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatBytes } from "../../lib/format";
 import type { ReclaimRow, ReclaimTier, RecycleBinStatus } from "../../types/filesystem";
@@ -21,12 +21,36 @@ function ready(status: string): boolean {
 export function ReclaimPanel() {
   const scanStatus = useFileStore((state) => state.scanStatus);
   const report = useFileStore((state) => state.reclaim);
+  const reclaimBusy = useFileStore((state) => state.reclaimBusy);
   const loadReclaim = useFileStore((state) => state.loadReclaim);
-  useEffect(() => {
-    if (ready(scanStatus)) void loadReclaim();
-  }, [scanStatus, loadReclaim]);
-  if (!ready(scanStatus)) return <p className="px-3 py-4 text-sm text-slate-500">Finish a scan to see what can be reclaimed.</p>;
-  return <ReclaimList rows={report?.rows ?? []} bin={report?.recycleBin ?? null} />;
+  const finished = ready(scanStatus);
+  const rows = report?.rows ?? [];
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center gap-2 px-3 py-2">
+        <button
+          type="button"
+          disabled={!finished || reclaimBusy}
+          className="h-7 shrink-0 rounded-md border border-cyan-300/40 px-2 text-xs text-cyan-100 disabled:opacity-40"
+          onClick={() => void loadReclaim()}
+        >
+          {rows.length > 0 ? "Re-scan" : "Scan"}
+        </button>
+      </div>
+      {!finished ? (
+        <p className="px-3 py-2 text-sm text-slate-500">Finish a scan to see what can be reclaimed.</p>
+      ) : (
+        <>
+          {reclaimBusy ? <p className="shrink-0 px-3 pb-2 text-sm text-slate-500">Scanning claims…</p> : null}
+          {report ? (
+            <ReclaimList rows={report.rows} bin={report.recycleBin} />
+          ) : reclaimBusy ? null : (
+            <p className="px-3 py-2 text-sm text-slate-500">Scan to list caches and other space you can reclaim.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 function ReclaimList({ rows, bin }: { rows: ReclaimRow[]; bin: RecycleBinStatus | null }) {
