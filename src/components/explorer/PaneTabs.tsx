@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { SEARCH_SECTION } from "../../lib/features";
 import type { LeftTab } from "../../store/types";
 import { useFileStore } from "../../store/useFileStore";
 
-const TABS: { id: LeftTab; label: string }[] = [
+const ALL_TABS: { id: LeftTab; label: string }[] = [
   { id: "explorer", label: "Explorer" },
   { id: "largest", label: "Largest" },
   { id: "search", label: "Search" },
@@ -11,6 +12,8 @@ const TABS: { id: LeftTab; label: string }[] = [
   { id: "duplicates", label: "Duplicates" },
   { id: "growth", label: "Growth" },
 ];
+
+const TABS = ALL_TABS.filter((tab) => SEARCH_SECTION || tab.id !== "search");
 
 const SCROLL_STEP = 132;
 

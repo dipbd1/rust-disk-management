@@ -1,4 +1,5 @@
-import { useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { SEARCH_SECTION } from "../../lib/features";
 import { DuplicatePanel } from "../explorer/DuplicatePanel";
 import { GrowthPanel } from "../explorer/GrowthPanel";
 import { PaneTabs } from "../explorer/PaneTabs";
@@ -23,7 +24,13 @@ export function SplitWorkspace() {
   const widthDrag = useRef<number | null>(null);
   const heightDrag = useRef<number | null>(null);
   const leftTab = useFileStore((state) => state.leftTab);
+  const setLeftTab = useFileStore((state) => state.setLeftTab);
   const reclaimOpen = leftTab === "reclaim";
+
+  useEffect(() => {
+    if (!SEARCH_SECTION && leftTab === "search") setLeftTab("explorer");
+  }, [leftTab, setLeftTab]);
+
   const inspectorCollapsed = reclaimOpen || detailsCollapsed;
   const columnWidth = reclaimOpen ? reclaimWidth : left;
 
@@ -78,7 +85,7 @@ export function SplitWorkspace() {
           <div className="flex min-h-0 flex-1 flex-col">
             {leftTab === "explorer" ? <VirtualFileTree /> : null}
             {leftTab === "largest" ? <LargestPanel /> : null}
-            {leftTab === "search" ? <SearchPanel /> : null}
+            {SEARCH_SECTION && leftTab === "search" ? <SearchPanel /> : null}
             {leftTab === "types" ? <TypesPanel /> : null}
             {leftTab === "reclaim" ? <ReclaimPanel /> : null}
             {leftTab === "duplicates" ? <DuplicatePanel /> : null}
