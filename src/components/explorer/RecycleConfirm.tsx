@@ -11,7 +11,7 @@ export function RecycleConfirm() {
         <h2 id="recycle-title" className="text-base font-medium text-white">
           {prompt.title}
         </h2>
-        <p className="mt-2 text-sm text-slate-300">{prompt.body}</p>
+        <p className="mt-2 max-h-60 overflow-auto text-sm whitespace-pre-line text-slate-300">{prompt.body}</p>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" className="rounded-md border border-white/10 px-3 py-1.5 text-sm hover:bg-white/5" onClick={dismissRecycle}>
             Cancel

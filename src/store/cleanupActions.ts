@@ -73,7 +73,7 @@ export async function confirmRecycle(set: SetFile, get: GetFile): Promise<void> 
   set({ recyclePrompt: null });
   try {
     if (prompt.kind === "reclaim") {
-      applyBatch(set, await recycleReclaim(prompt.ids));
+      applyBatch(set, await recycleReclaim(prompt.ids), prompt.outcome);
       await loadReclaim(set, get);
       return;
     }
@@ -83,14 +83,14 @@ export async function confirmRecycle(set: SetFile, get: GetFile): Promise<void> 
       return;
     }
     const emptied = await emptyRecycleBin();
-    set({ toast: `Emptied the Recycle Bin · ${formatBytes(emptied.freedBytes)} freed` });
+    set({ toast: prompt.outcome ?? `Emptied the Recycle Bin · ${formatBytes(emptied.freedBytes)} freed` });
     await loadReclaim(set, get);
   } catch (error) {
     set({ toast: errorMessage(error) });
   }
 }
 
-function applyBatch(set: SetFile, batch: RecycleBatch): void {
+function applyBatch(set: SetFile, batch: RecycleBatch, outcome?: string): void {
   set((state) => {
     const next = batch.results.reduce((acc, result) => ({ ...acc, ...applyDelete(acc, result) }), state);
     return {
@@ -100,7 +100,7 @@ function applyBatch(set: SetFile, batch: RecycleBatch): void {
       extensions: null,
       extensionPage: null,
       reclaim: null,
-      toast: `Moved to the Recycle Bin · ${formatBytes(batch.freedBytes)} freed`,
+      toast: outcome ?? `Moved to the Recycle Bin · ${formatBytes(batch.freedBytes)} freed`,
     };
   });
 }
