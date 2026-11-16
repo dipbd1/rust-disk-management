@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { SEARCH_SECTION } from "../../lib/features";
+import { reclaimHasContent } from "../../lib/reclaimView";
 import { DuplicatePanel } from "../explorer/DuplicatePanel";
 import { GrowthPanel } from "../explorer/GrowthPanel";
 import { PaneTabs } from "../explorer/PaneTabs";
@@ -21,21 +22,24 @@ export function SplitWorkspace() {
   const [reclaimWidth, setReclaimWidth] = useState(RECLAIM_WIDTH);
   const [detailsRatio, setDetailsRatio] = useState(0.35);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [widthDragging, setWidthDragging] = useState(false);
   const widthDrag = useRef<number | null>(null);
   const heightDrag = useRef<number | null>(null);
   const leftTab = useFileStore((state) => state.leftTab);
   const setLeftTab = useFileStore((state) => state.setLeftTab);
-  const reclaimOpen = leftTab === "reclaim";
+  const hasReclaimContent = useFileStore((state) => reclaimHasContent(state.reclaim));
+  const reclaimWide = leftTab === "reclaim" && hasReclaimContent;
 
   useEffect(() => {
     if (!SEARCH_SECTION && leftTab === "search") setLeftTab("explorer");
   }, [leftTab, setLeftTab]);
 
-  const inspectorCollapsed = reclaimOpen || detailsCollapsed;
-  const columnWidth = reclaimOpen ? reclaimWidth : left;
+  const inspectorCollapsed = reclaimWide || detailsCollapsed;
+  const columnWidth = reclaimWide ? reclaimWidth : left;
 
   const onWidthPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     widthDrag.current = event.pointerId;
+    setWidthDragging(true);
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const onWidthPointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -43,15 +47,18 @@ export function SplitWorkspace() {
     const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
     if (!bounds || bounds.width <= 0) return;
     const next = ((event.clientX - bounds.left) / bounds.width) * 100;
-    const reclaim = useFileStore.getState().leftTab === "reclaim";
-    const max = reclaim ? 72 : 58;
-    const min = reclaim ? 42 : 22;
+    const state = useFileStore.getState();
+    const wide = state.leftTab === "reclaim" && reclaimHasContent(state.reclaim);
+    const max = wide ? 72 : 58;
+    const min = wide ? 42 : 22;
     const clamped = Math.min(max, Math.max(min, next));
-    if (reclaim) setReclaimWidth(clamped);
+    if (wide) setReclaimWidth(clamped);
     else setLeft(clamped);
   };
   const onWidthPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (widthDrag.current === event.pointerId) widthDrag.current = null;
+    if (widthDrag.current !== event.pointerId) return;
+    widthDrag.current = null;
+    setWidthDragging(false);
   };
 
   const onHeightPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -76,7 +83,10 @@ export function SplitWorkspace() {
 
   return (
     <div className="flex min-h-0 flex-1">
-      <div className="flex min-h-0 min-w-0 flex-col border-r border-white/10" style={{ width: `${columnWidth}%` }}>
+      <div
+        className={`split-column flex min-h-0 min-w-0 flex-col border-r border-white/10${widthDragging ? " split-column-dragging" : ""}`}
+        style={{ width: `${columnWidth}%` }}
+      >
         <div
           className="flex min-h-0 flex-col overflow-hidden"
           style={{ flex: inspectorCollapsed ? "1 1 0%" : `${1 - detailsRatio} 1 0%` }}
@@ -110,7 +120,8 @@ export function SplitWorkspace() {
           <ViewerInspector
             collapsed={inspectorCollapsed}
             onToggle={() => {
-              if (useFileStore.getState().leftTab === "reclaim") return;
+              const state = useFileStore.getState();
+              if (state.leftTab === "reclaim" && reclaimHasContent(state.reclaim)) return;
               setDetailsCollapsed((collapsed) => !collapsed);
             }}
           />
@@ -124,6 +135,7 @@ export function SplitWorkspace() {
         onPointerDown={onWidthPointerDown}
         onPointerMove={onWidthPointerMove}
         onPointerUp={onWidthPointerUp}
+        onPointerCancel={onWidthPointerUp}
       />
       <div className="min-h-0 min-w-0 flex-1">
         <GraphCanvas />

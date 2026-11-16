@@ -22,6 +22,13 @@ export function reclaimFigures(report: ReclaimReport): ReclaimFigures {
   };
 }
 
+/** Wide layout is for a report that has reclaimable bytes or a known bin size. */
+export function reclaimHasContent(report: ReclaimReport | null): boolean {
+  if (!report) return false;
+  if (report.rows.some((row) => row.sizeBytes > 0)) return true;
+  return report.recycleBin.available && report.recycleBin.sizeBytes > 0;
+}
+
 export function rowsByTier(rows: ReclaimRow[], tier: ReclaimTier): ReclaimRow[] {
   return rows.filter((row) => row.tier === tier);
 }

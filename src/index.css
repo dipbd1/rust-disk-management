@@ -74,3 +74,35 @@ button,
 input {
   font: inherit;
 }
+
+.split-column {
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.split-column.split-column-dragging {
+  transition: none;
+}
+
+.reclaim-dashboard {
+  animation: reclaim-dashboard-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes reclaim-dashboard-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split-column {
+    transition: none;
+  }
+
+  .reclaim-dashboard {
+    animation: none;
+  }
+}

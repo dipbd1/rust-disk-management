@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { formatBytes } from "../../lib/format";
-import { graphFolder, groupPrompt, initialChecked, reclaimFigures, rowsByTier } from "../../lib/reclaimView";
+import { graphFolder, groupPrompt, initialChecked, reclaimFigures, reclaimHasContent, rowsByTier } from "../../lib/reclaimView";
 import { useFileStore } from "../../store/useFileStore";
 import type { ReclaimReport, ReclaimRow } from "../../types/filesystem";
 import { RecycleBinCard } from "./reclaim/RecycleBinCard";
@@ -36,8 +36,10 @@ export function ReclaimPanel() {
       </div>
       {!finished ? (
         <p className="px-3 py-2 text-sm text-slate-500">Finish a scan to see what can be reclaimed.</p>
-      ) : report ? (
+      ) : report && reclaimHasContent(report) ? (
         <ReclaimDashboard report={report} />
+      ) : report ? (
+        <p className="px-3 py-2 text-sm text-slate-500">Nothing to reclaim.</p>
       ) : reclaimBusy ? null : (
         <p className="px-3 py-2 text-sm text-slate-500">Scan to list caches and other space you can reclaim.</p>
       )}
@@ -87,7 +89,7 @@ function ReclaimDashboard({ report }: { report: ReclaimReport }) {
   };
 
   return (
-    <div className="@container min-h-0 flex-1 overflow-auto px-3 pb-4">
+    <div className="reclaim-dashboard @container min-h-0 flex-1 overflow-auto px-3 pb-4">
       <ReclaimHero
         figures={figures}
         checkedBytes={checkedBytes}
