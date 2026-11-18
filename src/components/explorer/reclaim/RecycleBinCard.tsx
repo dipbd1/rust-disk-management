@@ -9,7 +9,7 @@ export function RecycleBinCard({ bin }: { bin: RecycleBinStatus }) {
   const count = bin.available ? `${bin.itemCount.toLocaleString()} items` : "Count unavailable";
 
   return (
-    <section className="flex flex-col rounded-xl border border-teal-400/25 bg-[#0B1020] p-3">
+    <section className="z-10 flex flex-col self-start rounded-xl border border-teal-400/25 bg-[#0B1020] p-3 @min-[960px]:sticky @min-[960px]:top-0">
       <h3 className="text-sm font-medium text-slate-100">Recycle Bin</h3>
       <p className="mt-2 text-lg font-semibold text-slate-50 tabular-nums">{size}</p>
       <p className="mt-1 text-xs text-slate-400">{count}</p>

@@ -1,7 +1,7 @@
-import type { Ref } from "react";
+import type { Ref, RefObject } from "react";
 import { formatBytes } from "../../../lib/format";
 import { rowsByTier, type ReclaimFigures } from "../../../lib/reclaimView";
-import type { ReclaimRow } from "../../../types/filesystem";
+import type { ReclaimRow, ReclaimTier } from "../../../types/filesystem";
 import { TierCard } from "./TierCard";
 
 interface ReclaimGroupsProps {
@@ -10,6 +10,9 @@ interface ReclaimGroupsProps {
   checked: Set<string>;
   selectedId: string | null;
   reviewRef: Ref<HTMLElement>;
+  scrollRef: RefObject<HTMLDivElement | null>;
+  openTier: ReclaimTier | null;
+  onOpen: (tier: ReclaimTier) => void;
   onToggle: (id: string) => void;
   onSelect: (row: ReclaimRow) => void;
   onClearSafe: () => void;
@@ -26,6 +29,9 @@ export function ReclaimGroups({
   checked,
   selectedId,
   reviewRef,
+  scrollRef,
+  openTier,
+  onOpen,
   onToggle,
   onSelect,
   onClearSafe,
@@ -38,13 +44,15 @@ export function ReclaimGroups({
   const system = rowsByTier(rows, "system");
   const safeChecked = safe.filter((row) => checked.has(row.id) && row.canRecycle);
   const rebuildChecked = rebuild.filter((row) => checked.has(row.id) && row.canRecycle);
-  const shared = { checked, selectedId, onToggle, onSelect };
+  const shared = { checked, selectedId, scrollRef, onToggle, onSelect };
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
       {safe.length > 0 ? (
         <TierCard
           {...shared}
+          open={openTier === "safe"}
+          onToggleOpen={() => onOpen("safe")}
           title="Scratch files"
           bytes={figures.comesBack}
           rimClass="border-cyan-400/30"
@@ -65,6 +73,8 @@ export function ReclaimGroups({
       {rebuild.length > 0 ? (
         <TierCard
           {...shared}
+          open={openTier === "rebuild"}
+          onToggleOpen={() => onOpen("rebuild")}
           title="Rebuilds"
           bytes={figures.rebuilds}
           rimClass="border-amber-400/35"
@@ -85,6 +95,8 @@ export function ReclaimGroups({
       <TierCard
         {...shared}
         sectionRef={reviewRef}
+        open={openTier === "review"}
+        onToggleOpen={() => onOpen("review")}
         title="Review before deleting"
         bytes={figures.review}
         rimClass="border-rose-400/35"
@@ -99,6 +111,8 @@ export function ReclaimGroups({
       {system.length > 0 ? (
         <TierCard
           {...shared}
+          open={openTier === "system"}
+          onToggleOpen={() => onOpen("system")}
           title="Leave these"
           bytes={sumBytes(system)}
           rimClass="border-white/10"

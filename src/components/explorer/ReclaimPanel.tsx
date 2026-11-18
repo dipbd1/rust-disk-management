@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { formatBytes } from "../../lib/format";
 import { graphFolder, groupPrompt, initialChecked, reclaimFigures, reclaimHasContent, rowsByTier } from "../../lib/reclaimView";
 import { useFileStore } from "../../store/useFileStore";
-import type { ReclaimReport, ReclaimRow } from "../../types/filesystem";
+import type { ReclaimReport, ReclaimRow, ReclaimTier } from "../../types/filesystem";
 import { RecycleBinCard } from "./reclaim/RecycleBinCard";
 import { ReclaimGroups } from "./reclaim/ReclaimGroups";
 import { ReclaimHero } from "./reclaim/ReclaimHero";
@@ -49,14 +49,17 @@ export function ReclaimPanel() {
 
 function ReclaimDashboard({ report }: { report: ReclaimReport }) {
   const promptRecycle = useFileStore((state) => state.promptRecycle);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const reviewRef = useRef<HTMLElement>(null);
   const [checked, setChecked] = useState(() => initialChecked(report.rows));
   const [seen, setSeen] = useState(report.rows);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [openTier, setOpenTier] = useState<ReclaimTier | null>(null);
   if (seen !== report.rows) {
     setSeen(report.rows);
     setChecked(initialChecked(report.rows));
     setSelectedId(null);
+    setOpenTier(null);
   }
 
   const figures = reclaimFigures(report);
@@ -88,13 +91,24 @@ function ReclaimDashboard({ report }: { report: ReclaimReport }) {
     promptRecycle({ kind: "reclaim", ids: picked.map((row) => row.id), ...groupPrompt(kind, picked) });
   };
 
+  const toggleTier = (tier: ReclaimTier) => {
+    setOpenTier((current) => (current === tier ? null : tier));
+  };
+
+  const openReview = () => {
+    setOpenTier("review");
+    requestAnimationFrame(() => {
+      reviewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
   return (
-    <div className="reclaim-dashboard @container min-h-0 flex-1 overflow-auto px-3 pb-4">
+    <div ref={scrollRef} className="reclaim-dashboard @container min-h-0 flex-1 overflow-auto px-3 pb-4">
       <ReclaimHero
         figures={figures}
         checkedBytes={checkedBytes}
         onReclaim={() => clearTier("safe")}
-        onReview={() => reviewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        onReview={openReview}
       />
       <div className="mt-3 grid gap-3 @min-[960px]:grid-cols-[13.5rem_minmax(0,1fr)]">
         <RecycleBinCard bin={report.recycleBin} />
@@ -104,6 +118,9 @@ function ReclaimDashboard({ report }: { report: ReclaimReport }) {
           checked={checked}
           selectedId={selectedId}
           reviewRef={reviewRef}
+          scrollRef={scrollRef}
+          openTier={openTier}
+          onOpen={toggleTier}
           onToggle={toggle}
           onSelect={selectRow}
           onClearSafe={() => clearTier("safe")}
