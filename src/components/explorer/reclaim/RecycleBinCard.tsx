@@ -2,6 +2,7 @@ import { formatBytes } from "../../../lib/format";
 import { STAYS_FREE_TOAST } from "../../../lib/reclaimView";
 import type { RecycleBinStatus } from "../../../types/filesystem";
 import { useFileStore } from "../../../store/useFileStore";
+import { reclaimButton } from "./buttons";
 
 export function RecycleBinCard({ bin }: { bin: RecycleBinStatus }) {
   const promptRecycle = useFileStore((state) => state.promptRecycle);
@@ -16,7 +17,7 @@ export function RecycleBinCard({ bin }: { bin: RecycleBinStatus }) {
       <p className="mt-2 text-xs text-slate-400">Already removed from their folders. Emptying the bin is permanent.</p>
       <button
         type="button"
-        className="mt-3 h-9 rounded-lg bg-[#F43F5E] text-sm font-semibold text-[#0B0F17] hover:brightness-110"
+        className={`mt-3 ${reclaimButton.danger}`}
         onClick={() =>
           promptRecycle({
             kind: "bin",

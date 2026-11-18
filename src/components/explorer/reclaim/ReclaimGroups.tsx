@@ -2,6 +2,7 @@ import type { Ref, RefObject } from "react";
 import { formatBytes } from "../../../lib/format";
 import { rowsByTier, type ReclaimFigures } from "../../../lib/reclaimView";
 import type { ReclaimRow, ReclaimTier } from "../../../types/filesystem";
+import { reclaimButton } from "./buttons";
 import { TierCard } from "./TierCard";
 
 interface ReclaimGroupsProps {
@@ -19,9 +20,6 @@ interface ReclaimGroupsProps {
   onClearRebuild: () => void;
   onRecycle: (row: ReclaimRow) => void;
 }
-
-const SAFE_ACTION = "h-8 shrink-0 rounded-full border border-cyan-300/50 px-3 text-xs text-cyan-100 disabled:opacity-40";
-const REBUILD_ACTION = "h-8 shrink-0 rounded-full border border-amber-300/50 px-3 text-xs text-amber-100 disabled:opacity-40";
 
 export function ReclaimGroups({
   rows,
@@ -65,7 +63,7 @@ export function ReclaimGroups({
           action={{
             label: safeChecked.length > 0 ? `Move ${formatBytes(sumBytes(safeChecked))} to bin` : "Move to bin",
             disabled: safeChecked.length === 0,
-            className: SAFE_ACTION,
+            className: reclaimButton.safe,
             onClick: onClearSafe,
           }}
         />
@@ -87,7 +85,7 @@ export function ReclaimGroups({
           action={{
             label: rebuildChecked.length > 0 ? `Move ${formatBytes(sumBytes(rebuildChecked))} to bin` : "Move to bin",
             disabled: rebuildChecked.length === 0,
-            className: REBUILD_ACTION,
+            className: reclaimButton.rebuild,
             onClick: onClearRebuild,
           }}
         />

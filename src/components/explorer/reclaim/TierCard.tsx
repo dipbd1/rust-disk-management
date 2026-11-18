@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef, useState, type Ref, type RefObjec
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatBytes } from "../../../lib/format";
 import type { ReclaimRow, ReclaimTier } from "../../../types/filesystem";
+import { reclaimFocus } from "./buttons";
 import { reclaimPalette } from "./palette";
 import { ReclaimRowView } from "./ReclaimRowView";
 
@@ -73,7 +74,7 @@ export function TierCard({
         <h3 className="min-w-0 flex-1">
           <button
             type="button"
-            className="flex w-full min-w-0 items-center gap-2 rounded-md text-left hover:bg-white/[0.04] focus-visible:bg-white/[0.04]"
+            className={`flex w-full min-w-0 items-center gap-2 rounded-md text-left hover:bg-white/[0.04] focus-visible:bg-white/[0.04] ${reclaimFocus}`}
             aria-expanded={open}
             aria-controls={open ? panelId : undefined}
             onClick={onToggleOpen}

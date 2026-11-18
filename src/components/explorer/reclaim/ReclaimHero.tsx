@@ -1,6 +1,7 @@
 import { formatBytes } from "../../../lib/format";
 import type { ReclaimFigures } from "../../../lib/reclaimView";
 import { ReclaimDonut, type DonutSlice } from "./ReclaimDonut";
+import { reclaimButton } from "./buttons";
 import { reclaimPalette } from "./palette";
 
 interface ReclaimHeroProps {
@@ -37,13 +38,13 @@ export function ReclaimHero({ figures, checkedBytes, onReclaim, onReview }: Recl
         <button
           type="button"
           disabled={checkedBytes <= 0}
-          className="h-10 rounded-full px-4 text-sm font-semibold disabled:opacity-40"
+          className={reclaimButton.primary}
           style={{ backgroundImage: `linear-gradient(90deg, ${reclaimPalette.bin}, ${reclaimPalette.glow})`, color: reclaimPalette.page }}
           onClick={onReclaim}
         >
           {checkedBytes > 0 ? `Move ${formatBytes(checkedBytes)} to the bin` : "Move scratch files to the bin"}
         </button>
-        <button type="button" className="text-sm text-cyan-200 hover:text-white" onClick={onReview}>
+        <button type="button" className={reclaimButton.ghost} onClick={onReview}>
           Advanced review
         </button>
       </div>

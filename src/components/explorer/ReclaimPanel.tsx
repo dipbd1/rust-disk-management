@@ -3,6 +3,7 @@ import { formatBytes } from "../../lib/format";
 import { graphFolder, groupPrompt, initialChecked, reclaimFigures, reclaimHasContent, rowsByTier } from "../../lib/reclaimView";
 import { useFileStore } from "../../store/useFileStore";
 import type { ReclaimReport, ReclaimRow, ReclaimTier } from "../../types/filesystem";
+import { reclaimButton } from "./reclaim/buttons";
 import { RecycleBinCard } from "./reclaim/RecycleBinCard";
 import { ReclaimGroups } from "./reclaim/ReclaimGroups";
 import { ReclaimHero } from "./reclaim/ReclaimHero";
@@ -27,7 +28,7 @@ export function ReclaimPanel() {
         <button
           type="button"
           disabled={!finished || reclaimBusy}
-          className="h-8 shrink-0 rounded-full border border-cyan-300/40 px-3 text-xs text-cyan-100 disabled:opacity-40"
+          className={reclaimButton.secondary}
           onClick={() => void loadReclaim()}
         >
           {report ? "Re-scan" : "Scan"}

@@ -2,6 +2,7 @@ import { formatBytes } from "../../../lib/format";
 import { isOldDownload, parentFolder } from "../../../lib/reclaimView";
 import { useFileStore } from "../../../store/useFileStore";
 import type { ReclaimRow, ReclaimTier } from "../../../types/filesystem";
+import { reclaimButton, reclaimFocus } from "./buttons";
 
 interface ReclaimRowViewProps {
   row: ReclaimRow;
@@ -43,7 +44,7 @@ export function ReclaimRowView({
           onChange={() => onToggle(row.id)}
         />
       ) : null}
-      <button type="button" className="min-w-0 flex-1 rounded-md text-left hover:bg-white/[0.04]" aria-pressed={selected} onClick={() => onSelect(row)}>
+      <button type="button" className={`min-w-0 flex-1 rounded-md text-left hover:bg-white/[0.04] ${reclaimFocus}`} aria-pressed={selected} onClick={() => onSelect(row)}>
         <span className="flex items-start justify-between gap-2">
           <span className="min-w-0 truncate text-sm text-slate-100" title={row.title}>
             {row.title}
@@ -61,7 +62,7 @@ export function ReclaimRowView({
       <div className="flex shrink-0 flex-col gap-1">
         <button
           type="button"
-          className="h-7 rounded-md border border-white/10 px-2 text-xs text-slate-200 hover:bg-white/5"
+          className={reclaimButton.row}
           onClick={(event) => {
             event.stopPropagation();
             void reveal(row.revealPath);
@@ -72,7 +73,7 @@ export function ReclaimRowView({
         {showRecycle && row.canRecycle && onRecycle ? (
           <button
             type="button"
-            className="h-7 rounded-md border border-rose-400/50 px-2 text-xs text-rose-100 hover:bg-rose-400/10"
+            className={reclaimButton.rowDanger}
             onClick={(event) => {
               event.stopPropagation();
               onRecycle(row);
