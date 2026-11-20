@@ -13,7 +13,9 @@ import type {
   GrowthDelta,
   InsightPage,
   LargestSort,
+  ReclaimProgress,
   ReclaimReport,
+  ReclaimScanResult,
   RecycleBatch,
   ScanProgress,
 } from "../types/filesystem";
@@ -25,6 +27,31 @@ export function listDrives(): Promise<DriveInfo[]> {
 
 function inDesktopWebview(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+function gate<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: unknown) => void;
+  once: (apply: () => void) => void;
+} {
+  let resolve: (value: T) => void = () => {};
+  let reject: (error: unknown) => void = () => {};
+  let settled = false;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return {
+    promise,
+    resolve: (value) => resolve(value),
+    reject: (error) => reject(error),
+    once(apply) {
+      if (settled) return;
+      settled = true;
+      apply();
+    },
+  };
 }
 
 export async function startScan(
@@ -46,30 +73,18 @@ function awaitBrowserScan(
   onProgress: (progress: ScanProgress) => void,
   force: boolean,
 ): Promise<ScanProgress> {
-  let resolveScan: (progress: ScanProgress) => void = () => {};
-  let rejectScan: (error: unknown) => void = () => {};
-  const finished = new Promise<ScanProgress>((resolve, reject) => {
-    resolveScan = resolve;
-    rejectScan = reject;
-  });
-  let settled = false;
-  const settle = (apply: () => void) => {
-    if (settled) return;
-    settled = true;
-    apply();
-  };
-
+  const done = gate<ScanProgress>();
   return (async () => {
     const stopProgress = await listen<ScanProgress>("scan-progress", (event) => {
       onProgress(event.payload);
-      if (event.payload.done) settle(() => resolveScan(event.payload));
+      if (event.payload.done) done.once(() => done.resolve(event.payload));
     });
     const stopError = await listen<string>("scan-error", (event) => {
-      settle(() => rejectScan(new Error(event.payload)));
+      done.once(() => done.reject(new Error(event.payload)));
     });
     try {
       await invoke("start_scan_remote", { path, force });
-      return await finished;
+      return await done.promise;
     } finally {
       stopProgress();
       stopError();
@@ -145,35 +160,37 @@ export function extensionFiles(extension: string, other: boolean, offset: number
   return invoke<InsightPage>("extension_files", { extension, other, offset, limit });
 }
 
-export function reclaimReport(): Promise<ReclaimReport> {
-  if (inDesktopWebview()) return invoke<ReclaimReport>("reclaim_report");
-  return awaitBrowserReclaim();
+export function reclaimReport(onProgress: (progress: ReclaimProgress) => void): Promise<ReclaimScanResult> {
+  if (inDesktopWebview()) {
+    const channel = new Channel<ReclaimProgress>();
+    channel.onmessage = onProgress;
+    return invoke<ReclaimScanResult>("reclaim_report", { onProgress: channel });
+  }
+  return awaitBrowserReclaim(onProgress);
 }
 
-function awaitBrowserReclaim(): Promise<ReclaimReport> {
-  let resolveScan: (report: ReclaimReport) => void = () => {};
-  let rejectScan: (error: unknown) => void = () => {};
-  const finished = new Promise<ReclaimReport>((resolve, reject) => {
-    resolveScan = resolve;
-    rejectScan = reject;
-  });
-  let settled = false;
-  const settle = (apply: () => void) => {
-    if (settled) return;
-    settled = true;
-    apply();
-  };
+export function cancelReclaim(): Promise<void> {
+  return invoke("cancel_reclaim");
+}
+
+function awaitBrowserReclaim(onProgress: (progress: ReclaimProgress) => void): Promise<ReclaimScanResult> {
+  const done = gate<ReclaimScanResult>();
   return (async () => {
+    const stopProgress = await listen<ReclaimProgress>("reclaim-progress", (event) => {
+      onProgress(event.payload);
+      if (event.payload.done && event.payload.cancelled) done.once(() => done.resolve({ cancelled: true, report: null }));
+    });
     const stopReport = await listen<ReclaimReport>("reclaim-report", (event) => {
-      settle(() => resolveScan(event.payload));
+      done.once(() => done.resolve({ cancelled: false, report: event.payload }));
     });
     const stopError = await listen<string>("reclaim-error", (event) => {
-      settle(() => rejectScan(new Error(event.payload)));
+      done.once(() => done.reject(new Error(event.payload)));
     });
     try {
       await invoke("reclaim_report_remote");
-      return await finished;
+      return await done.promise;
     } finally {
+      stopProgress();
       stopReport();
       stopError();
     }
@@ -214,29 +231,18 @@ export async function startDuplicateReview(onProgress: (progress: DuplicateProgr
 }
 
 function awaitBrowserDuplicates(onProgress: (progress: DuplicateProgress) => void): Promise<DuplicateProgress> {
-  let resolveScan: (progress: DuplicateProgress) => void = () => {};
-  let rejectScan: (error: unknown) => void = () => {};
-  const finished = new Promise<DuplicateProgress>((resolve, reject) => {
-    resolveScan = resolve;
-    rejectScan = reject;
-  });
-  let settled = false;
-  const settle = (apply: () => void) => {
-    if (settled) return;
-    settled = true;
-    apply();
-  };
+  const done = gate<DuplicateProgress>();
   return (async () => {
     const stopProgress = await listen<DuplicateProgress>("duplicate-progress", (event) => {
       onProgress(event.payload);
-      if (event.payload.done) settle(() => resolveScan(event.payload));
+      if (event.payload.done) done.once(() => done.resolve(event.payload));
     });
     const stopError = await listen<string>("duplicate-error", (event) => {
-      settle(() => rejectScan(new Error(event.payload)));
+      done.once(() => done.reject(new Error(event.payload)));
     });
     try {
       await invoke("start_duplicate_review_remote");
-      return await finished;
+      return await done.promise;
     } finally {
       stopProgress();
       stopError();

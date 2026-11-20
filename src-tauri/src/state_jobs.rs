@@ -30,6 +30,24 @@ impl AppState {
         lock(&self.session).duplicate_cancel.store(true, Ordering::Relaxed);
     }
 
+    /// Starts a reclaim pass and cancels the previous one. The flag is relaxed; the walk only reads it.
+    pub fn begin_reclaim(&self) -> (u64, Arc<AtomicBool>) {
+        let mut session = lock(&self.session);
+        session.reclaim_cancel.store(true, Ordering::Relaxed);
+        session.reclaim_generation = session.reclaim_generation.wrapping_add(1);
+        let cancel = Arc::new(AtomicBool::new(false));
+        session.reclaim_cancel = Arc::clone(&cancel);
+        (session.reclaim_generation, cancel)
+    }
+
+    pub fn reclaim_generation(&self) -> u64 {
+        lock(&self.session).reclaim_generation
+    }
+
+    pub fn cancel_reclaim(&self) {
+        lock(&self.session).reclaim_cancel.store(true, Ordering::Relaxed);
+    }
+
     pub fn finish_duplicates(&self, generation: u64, groups: Vec<DuplicateGroup>) -> bool {
         let mut session = lock(&self.session);
         if session.duplicate_generation != generation {

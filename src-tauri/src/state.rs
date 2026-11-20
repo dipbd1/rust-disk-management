@@ -25,6 +25,9 @@ struct Session {
     duplicate_generation: u64,
     duplicate_cancel: Arc<AtomicBool>,
     duplicate_groups: Vec<DuplicateGroup>,
+    /// Latest reclaim pass. An older walk must not publish over a newer one.
+    reclaim_generation: u64,
+    reclaim_cancel: Arc<AtomicBool>,
 }
 
 /// How a browser `start_scan_remote` should treat the scan already in memory.
@@ -61,6 +64,8 @@ impl AppState {
                 duplicate_generation: 0,
                 duplicate_cancel: Arc::new(AtomicBool::new(false)),
                 duplicate_groups: Vec::new(),
+                reclaim_generation: 0,
+                reclaim_cancel: Arc::new(AtomicBool::new(false)),
             }),
             watcher: Mutex::new(None),
             emit_scheduled: AtomicBool::new(false),
@@ -82,6 +87,8 @@ impl AppState {
         session.duplicate_groups.clear();
         session.duplicate_generation = session.duplicate_generation.wrapping_add(1);
         session.duplicate_cancel.store(true, Ordering::Relaxed);
+        session.reclaim_generation = session.reclaim_generation.wrapping_add(1);
+        session.reclaim_cancel.store(true, Ordering::Relaxed);
         let generation = session.generation;
         drop(session);
         *lock(&self.insight) = None;

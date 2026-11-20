@@ -7,6 +7,7 @@ import type {
   GrowthDelta,
   InsightPage,
   LargestOrder,
+  ReclaimProgress,
   ReclaimReport,
   ScanProgress,
 } from "../types/filesystem";
@@ -77,6 +78,7 @@ export interface FileData {
   extensionPage: InsightPage | null;
   reclaim: ReclaimReport | null;
   reclaimBusy: boolean;
+  reclaimProgress: ReclaimProgress | null;
   duplicateRun: DuplicateRun | null;
   growth: GrowthDelta | null;
   recyclePrompt: RecyclePrompt | null;
@@ -113,6 +115,7 @@ export interface FileActions {
   loadMoreExtension: () => Promise<void>;
   openLocated: (node: FileNode) => Promise<void>;
   loadReclaim: () => Promise<void>;
+  cancelReclaim: () => Promise<void>;
   loadGrowth: () => Promise<void>;
   scanFolder: () => Promise<void>;
   startDuplicates: () => Promise<void>;
@@ -154,6 +157,7 @@ export const initialData: FileData = {
   extensionPage: null,
   reclaim: null,
   reclaimBusy: false,
+  reclaimProgress: null,
   duplicateRun: null,
   growth: null,
   recyclePrompt: null,

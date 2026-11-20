@@ -110,6 +110,8 @@ export async function scanDrive(set: SetFile, get: GetFile, mount: string, force
     extensionTarget: null,
     extensionPage: null,
     reclaim: null,
+    reclaimBusy: false,
+    reclaimProgress: null,
     duplicateRun: null,
     growth: null,
     recyclePrompt: null,

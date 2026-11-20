@@ -115,6 +115,33 @@ export interface ReclaimReport {
   recycleBin: RecycleBinStatus;
 }
 
+export interface ReclaimScanResult {
+  cancelled: boolean;
+  report: ReclaimReport | null;
+}
+
+export type ReclaimPhase = "index" | "bin";
+
+export type ReclaimGroupStatus = "scanning" | "pending" | "done";
+
+export interface ReclaimGroupTick {
+  id: string;
+  title: string;
+  sizeBytes: number;
+  status: ReclaimGroupStatus;
+}
+
+/** Throttled reclaim pass. `checked / total` is the index walk. The bin query is the last phase. */
+export interface ReclaimProgress {
+  checked: number;
+  total: number;
+  currentPath: string;
+  phase: ReclaimPhase;
+  groups: ReclaimGroupTick[];
+  done: boolean;
+  cancelled: boolean;
+}
+
 export interface RecycleBatch {
   freedBytes: number;
   results: DeleteResult[];

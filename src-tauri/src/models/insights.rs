@@ -73,6 +73,52 @@ pub struct ReclaimReport {
     pub recycle_bin: RecycleBinStatus,
 }
 
+/// `reclaim_report` returns this. A cancel carries no report, so the previous one stays.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReclaimScanResult {
+    pub cancelled: bool,
+    pub report: Option<ReclaimReport>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ReclaimPhase {
+    Index,
+    Bin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ReclaimGroupStatus {
+    Scanning,
+    Pending,
+    Done,
+}
+
+/// One catalog group on a progress tick. Bytes found so far, not a second copy of the rows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReclaimGroupTick {
+    pub id: String,
+    pub title: String,
+    pub size_bytes: u64,
+    pub status: ReclaimGroupStatus,
+}
+
+/// Throttled reclaim pass. `checked / total` is the index walk. The bin query is the last phase.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReclaimProgress {
+    pub checked: u64,
+    pub total: u64,
+    pub current_path: String,
+    pub phase: ReclaimPhase,
+    pub groups: Vec<ReclaimGroupTick>,
+    pub done: bool,
+    pub cancelled: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecycleBatch {

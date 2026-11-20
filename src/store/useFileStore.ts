@@ -11,6 +11,7 @@ import {
 import { focusNode, loadMoreList, loadMoreTree, setQuery, toggleExpanded } from "./navActions";
 import {
   cancelDuplicates,
+  cancelReclaim,
   confirmRecycle,
   dismissRecycle,
   loadReclaim,
@@ -70,6 +71,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   loadMoreExtension: () => loadMoreExtension(set, get),
   openLocated: (node) => openLocated(set, get, node),
   loadReclaim: () => loadReclaim(set, get),
+  cancelReclaim: () => cancelReclaim(set),
   loadGrowth: () => loadGrowth(set),
   scanFolder: () => scanFolder(set, get),
   startDuplicates: () => startDuplicates(set, get),

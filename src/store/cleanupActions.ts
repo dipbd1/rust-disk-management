@@ -1,6 +1,7 @@
 import { formatBytes, errorMessage } from "../lib/format";
 import {
   cancelDuplicateReview,
+  cancelReclaim as requestCancelReclaim,
   emptyRecycleBin,
   reclaimReport,
   recycleDuplicateCopies,
@@ -15,15 +16,31 @@ import type { StoreApi } from "zustand";
 type SetFile = StoreApi<FileStore>["setState"];
 type GetFile = StoreApi<FileStore>["getState"];
 
+let reclaimToken = 0;
+
 export async function loadReclaim(set: SetFile, get: GetFile): Promise<void> {
   if (get().reclaimBusy) return;
-  set({ reclaimBusy: true });
+  const token = ++reclaimToken;
+  set({ reclaimBusy: true, reclaimProgress: null });
   try {
-    set({ reclaim: await reclaimReport() });
+    const result = await reclaimReport((progress) => {
+      if (token !== reclaimToken || !get().reclaimBusy) return;
+      set({ reclaimProgress: progress });
+    });
+    if (token !== reclaimToken || !get().reclaimBusy || !result.report) return;
+    set({ reclaim: result.report });
+  } catch (error) {
+    if (token === reclaimToken) set({ toast: errorMessage(error) });
+  } finally {
+    if (token === reclaimToken) set({ reclaimBusy: false, reclaimProgress: null });
+  }
+}
+
+export async function cancelReclaim(set: SetFile): Promise<void> {
+  try {
+    await requestCancelReclaim();
   } catch (error) {
     set({ toast: errorMessage(error) });
-  } finally {
-    set({ reclaimBusy: false });
   }
 }
 

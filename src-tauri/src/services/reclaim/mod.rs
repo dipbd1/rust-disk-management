@@ -1,19 +1,20 @@
 mod catalog;
 mod facts;
+mod walk;
 
-use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::AppError;
 use crate::limits::{RECLAIM_DOWNLOAD_AGE_DAYS, RECLAIM_DOWNLOAD_MIN_BYTES};
-use crate::models::{NodeKind, ReclaimReport, ReclaimRow, ReclaimTier, RecycleBinStatus};
+use crate::models::{ReclaimReport, ReclaimRow, ReclaimTier, RecycleBinStatus};
 use crate::services::guard::{self, GuardMode};
 #[cfg(test)]
 use crate::services::index::ScanIndex;
-use crate::services::paths::{is_drive_root, ready_parent};
+use crate::services::paths::is_drive_root;
 
-use catalog::{FileHit, match_dir, match_file};
 pub use facts::snapshot;
+pub use walk::{bin_tick, cancelled_tick, index_tick, walk};
 use facts::NodeFact;
 
 #[cfg(test)]
@@ -21,9 +22,10 @@ pub fn report(index: &ScanIndex, recycle_bin: RecycleBinStatus) -> ReclaimReport
     report_from(&snapshot(index), recycle_bin)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn report_from(facts: &[NodeFact], recycle_bin: RecycleBinStatus) -> ReclaimReport {
     ReclaimReport {
-        rows: collect(facts),
+        rows: quiet_rows(facts),
         recycle_bin,
     }
 }
@@ -37,7 +39,7 @@ pub fn recycle_paths_from(facts: &[NodeFact], ids: &[String]) -> Result<Vec<Stri
     if ids.is_empty() {
         return Err(AppError::Reclaim("nothing to recycle".into()));
     }
-    let rows = collect(facts);
+    let rows = quiet_rows(facts);
     let mut paths = Vec::new();
     for id in ids {
         let Some(row) = rows.iter().find(|row| row.id == id.as_str()) else {
@@ -61,89 +63,8 @@ pub fn recycle_paths_from(facts: &[NodeFact], ids: &[String]) -> Result<Vec<Stri
     Ok(paths)
 }
 
-fn collect(facts: &[NodeFact]) -> Vec<ReclaimRow> {
-    let mut rows = Vec::new();
-    let mut thumbs: HashMap<String, (u64, Vec<String>)> = HashMap::new();
-    for fact in facts {
-        let path = fact.path.clone();
-        let name = fact.name.clone();
-        let kind = fact.kind;
-        let size = fact.size;
-        if guard::is_refused(&path, GuardMode::Reclaim) {
-            continue;
-        }
-        if kind == NodeKind::Folder {
-            if let Some(hit) = match_dir(&path, &name) {
-                rows.push(row(
-                    format!("{}:{path}", hit.id),
-                    hit.tier,
-                    hit.title,
-                    hit.sentence,
-                    &path,
-                    size,
-                    1,
-                    true,
-                    vec![path.clone()],
-                ));
-            }
-            continue;
-        }
-        if kind != NodeKind::File {
-            continue;
-        }
-        match match_file(&path, &name) {
-            Some(FileHit::System { title, sentence }) => rows.push(row(
-                format!("system:{path}"),
-                ReclaimTier::System,
-                title,
-                sentence,
-                &path,
-                size,
-                1,
-                false,
-                Vec::new(),
-            )),
-            Some(FileHit::Thumb) => {
-                let parent = ready_parent(&path).unwrap_or("").to_string();
-                let entry = thumbs.entry(parent).or_insert((0, Vec::new()));
-                entry.0 = entry.0.saturating_add(size);
-                entry.1.push(path);
-            }
-            Some(FileHit::Download) => {
-                if let Some(download) = download_row(&path, &name, size) {
-                    rows.push(download);
-                }
-            }
-            Some(FileHit::Disk) => rows.push(row(
-                format!("virtual-disk:{path}"),
-                ReclaimTier::Review,
-                &name,
-                "This virtual disk holds a Docker or WSL environment. Recycling it removes that environment.",
-                &path,
-                size,
-                1,
-                true,
-                vec![path.clone()],
-            )),
-            None => {}
-        }
-    }
-    for (parent, (size, paths)) in thumbs {
-        let count = paths.len() as u64;
-        rows.push(row(
-            format!("thumbnail:{parent}"),
-            ReclaimTier::Safe,
-            "Thumbnail cache",
-            "Explorer rebuilds thumbnail images the next time you open a folder.",
-            &parent,
-            size,
-            count,
-            true,
-            paths,
-        ));
-    }
-    rows.sort_by(|a, b| tier_rank(a.tier).cmp(&tier_rank(b.tier)).then(b.size_bytes.cmp(&a.size_bytes)));
-    rows
+fn quiet_rows(facts: &[NodeFact]) -> Vec<ReclaimRow> {
+    walk(facts, &AtomicBool::new(false), |_| {}).rows
 }
 
 fn download_row(path: &str, name: &str, size: u64) -> Option<ReclaimRow> {

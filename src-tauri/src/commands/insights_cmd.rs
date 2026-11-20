@@ -8,16 +8,13 @@ use tauri_remote_ui::EmitterExt;
 
 use crate::error::AppError;
 use crate::models::{
-    BinEmptyResult, DuplicateProgress, ExtensionRollup, GrowthDelta, InsightPage, LargestSort, ReclaimReport,
-    RecycleBatch,
+    BinEmptyResult, DuplicateProgress, ExtensionRollup, GrowthDelta, InsightPage, LargestSort, RecycleBatch,
 };
-use crate::services::{deletion, duplicates, insights, reclaim, recycle_bin};
+use crate::services::{deletion, duplicates, insights, recycle_bin};
 use crate::state::AppState;
 
 const DUPLICATE_PROGRESS_EVENT: &str = "duplicate-progress";
 const DUPLICATE_ERROR_EVENT: &str = "duplicate-error";
-const RECLAIM_EVENT: &str = "reclaim-report";
-const RECLAIM_ERROR_EVENT: &str = "reclaim-error";
 
 #[tauri::command]
 pub fn largest_files(
@@ -54,57 +51,6 @@ pub fn extension_files(
     limit: u32,
 ) -> Result<InsightPage, AppError> {
     app_state.with_insight(|index, cache| insights::extension_files(index, cache, &extension, other, offset, limit))
-}
-
-#[tauri::command]
-pub async fn reclaim_report(app_state: State<'_, Arc<AppState>>) -> Result<ReclaimReport, AppError> {
-    blocking_report(Arc::clone(app_state.inner())).await
-}
-
-#[tauri::command]
-pub async fn reclaim_report_remote(app: AppHandle, app_state: State<'_, Arc<AppState>>) -> Result<(), AppError> {
-    let state = Arc::clone(app_state.inner());
-    tauri::async_runtime::spawn(async move {
-        match blocking_report(state).await {
-            Ok(report) => {
-                let Some(window) = app.get_webview_window("main") else {
-                    return;
-                };
-                let _ = window.emit(RECLAIM_EVENT, report).await;
-            }
-            Err(error) => emit_text(&app, RECLAIM_ERROR_EVENT, error.to_string()).await,
-        }
-    });
-    Ok(())
-}
-
-async fn blocking_report(state: Arc<AppState>) -> Result<ReclaimReport, AppError> {
-    match tauri::async_runtime::spawn_blocking(move || {
-        let facts = state.with_index(|index| Ok(reclaim::snapshot(index)))?;
-        let bin = recycle_bin::query();
-        Ok(reclaim::report_from(&facts, bin))
-    })
-    .await
-    {
-        Ok(result) => result,
-        Err(err) => Err(AppError::Reclaim(format!("reclaim scan stopped: {err}"))),
-    }
-}
-
-#[tauri::command]
-pub async fn recycle_reclaim(app_state: State<'_, Arc<AppState>>, ids: Vec<String>) -> Result<RecycleBatch, AppError> {
-    let state = Arc::clone(app_state.inner());
-    let worker = Arc::clone(&state);
-    let paths = match tauri::async_runtime::spawn_blocking(move || {
-        let facts = worker.with_index(|index| Ok(reclaim::snapshot(index)))?;
-        reclaim::recycle_paths_from(&facts, &ids)
-    })
-    .await
-    {
-        Ok(result) => result?,
-        Err(err) => return Err(AppError::Reclaim(format!("reclaim scan stopped: {err}"))),
-    };
-    deletion::trash_many(&state, &paths)
 }
 
 #[tauri::command]

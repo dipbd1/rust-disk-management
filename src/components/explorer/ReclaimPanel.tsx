@@ -7,6 +7,8 @@ import { reclaimButton } from "./reclaim/buttons";
 import { RecycleBinCard } from "./reclaim/RecycleBinCard";
 import { ReclaimGroups } from "./reclaim/ReclaimGroups";
 import { ReclaimHero } from "./reclaim/ReclaimHero";
+import { ReclaimIntro } from "./reclaim/ReclaimIntro";
+import { ReclaimScanView } from "./reclaim/ReclaimScanView";
 
 const SCAN_WAIT = "Scanning in progress. Please wait.";
 
@@ -18,31 +20,31 @@ export function ReclaimPanel() {
   const scanStatus = useFileStore((state) => state.scanStatus);
   const report = useFileStore((state) => state.reclaim);
   const reclaimBusy = useFileStore((state) => state.reclaimBusy);
+  const reclaimProgress = useFileStore((state) => state.reclaimProgress);
   const loadReclaim = useFileStore((state) => state.loadReclaim);
+  const cancelReclaim = useFileStore((state) => state.cancelReclaim);
   const finished = ready(scanStatus);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center gap-3 px-3 py-3">
         <h2 className="text-lg font-semibold text-slate-50">Reclaim Space</h2>
-        <button
-          type="button"
-          disabled={!finished || reclaimBusy}
-          className={reclaimButton.secondary}
-          onClick={() => void loadReclaim()}
-        >
-          {report ? "Re-scan" : "Scan"}
-        </button>
-        {reclaimBusy ? <span className="text-xs text-slate-500">Scanning claims…</span> : null}
+        {report && !reclaimBusy ? (
+          <button type="button" disabled={!finished} className={reclaimButton.secondary} onClick={() => void loadReclaim()}>
+            Re-scan
+          </button>
+        ) : null}
       </div>
-      {!finished ? (
+      {reclaimBusy ? (
+        <ReclaimScanView progress={reclaimProgress} onCancel={() => void cancelReclaim()} />
+      ) : !finished ? (
         <p className="px-3 py-2 text-sm text-slate-500">Finish a scan to see what can be reclaimed.</p>
       ) : report && reclaimHasContent(report) ? (
         <ReclaimDashboard report={report} />
       ) : report ? (
         <p className="px-3 py-2 text-sm text-slate-500">Nothing to reclaim.</p>
-      ) : reclaimBusy ? null : (
-        <p className="px-3 py-2 text-sm text-slate-500">Scan to list caches and other space you can reclaim.</p>
+      ) : (
+        <ReclaimIntro onScan={() => void loadReclaim()} />
       )}
     </div>
   );
