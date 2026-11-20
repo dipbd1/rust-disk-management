@@ -6,6 +6,7 @@ import { squarify } from "./layoutArea";
 
 export function AreaMap() {
   const graphView = useFileStore((state) => state.graphView);
+  const selectedNodeId = useFileStore((state) => state.selectedNodeId);
   const focusNode = useFileStore((state) => state.focusNode);
   const selectNode = useFileStore((state) => state.selectNode);
   const frame = useRef<HTMLDivElement>(null);
@@ -38,14 +39,24 @@ export function AreaMap() {
         const node = nodes.find((item) => item.id === rect.id);
         if (!node) return null;
         const theme = getNodeVisualTheme(node, index);
+        const selected = selectedNodeId === node.id;
         return (
           <button
             key={node.id}
             type="button"
             title={`${node.name} · ${formatBytes(node.sizeBytes)}`}
             className="absolute overflow-hidden border border-black/40 px-1 text-left"
-            style={{ left: rect.x, top: rect.y, width: Math.max(0, rect.w - 1), height: Math.max(0, rect.h - 1), background: theme.secondary, color: theme.crest }}
-            onClick={() => {
+            style={{
+              left: rect.x,
+              top: rect.y,
+              width: Math.max(0, rect.w - 1),
+              height: Math.max(0, rect.h - 1),
+              background: theme.secondary,
+              color: theme.crest,
+              outline: selected ? `2px solid ${theme.crest}` : undefined,
+            }}
+            onClick={() => selectNode(node.id)}
+            onDoubleClick={() => {
               if (node.kind === "folder") void focusNode(node.path);
               else if (node.kind === "file") selectNode(node.id);
             }}

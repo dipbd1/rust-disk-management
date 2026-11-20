@@ -26,7 +26,8 @@ export interface DuplicateRun extends DuplicateProgress {
 export type RecyclePrompt =
   | { kind: "reclaim"; ids: string[]; title: string; body: string; outcome?: string }
   | { kind: "bin"; title: string; body: string; outcome?: string }
-  | { kind: "duplicates"; paths: string[]; title: string; body: string };
+  | { kind: "duplicates"; paths: string[]; title: string; body: string }
+  | { kind: "path"; path: string; title: string; body: string };
 
 export type ScanStatus = "idle" | "scanning" | "ready" | "cancelled" | "error";
 

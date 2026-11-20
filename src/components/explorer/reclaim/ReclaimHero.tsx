@@ -12,26 +12,18 @@ interface ReclaimHeroProps {
 }
 
 export function ReclaimHero({ figures, checkedBytes, onReclaim, onReview }: ReclaimHeroProps) {
-  const stays = figures.staysFree;
   const slices: DonutSlice[] = [
     { id: "safe", bytes: figures.comesBack, color: reclaimPalette.safe },
     { id: "rebuild", bytes: figures.rebuilds, color: reclaimPalette.rebuild },
-    { id: "bin", bytes: stays ?? 0, color: reclaimPalette.bin },
   ];
 
   return (
     <section className="rounded-2xl border border-cyan-400/30 bg-[#0B1020] p-4 shadow-[0_0_36px_rgba(0,240,255,0.08)]">
       <div className="flex flex-wrap items-center gap-4">
         <ReclaimDonut slices={slices} />
-        <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 @min-[520px]:grid-cols-3">
+        <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 @min-[520px]:grid-cols-2">
           <Figure label="Comes back" bytes={figures.comesBack} caption="Scratch files. Windows and browsers recreate them." color={reclaimPalette.safe} />
           <Figure label="Rebuilds" bytes={figures.rebuilds} caption="Comes back the next install or build." color={reclaimPalette.rebuild} />
-          <Figure
-            label="Stays free"
-            bytes={stays}
-            caption={stays === null ? "Size unavailable." : "Already in the bin. Emptying it is permanent."}
-            color={reclaimPalette.bin}
-          />
         </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -39,10 +31,10 @@ export function ReclaimHero({ figures, checkedBytes, onReclaim, onReview }: Recl
           type="button"
           disabled={checkedBytes <= 0}
           className={reclaimButton.primary}
-          style={{ backgroundImage: `linear-gradient(90deg, ${reclaimPalette.bin}, ${reclaimPalette.glow})`, color: reclaimPalette.page }}
+          style={{ backgroundImage: `linear-gradient(90deg, ${reclaimPalette.safe}, ${reclaimPalette.glow})`, color: reclaimPalette.page }}
           onClick={onReclaim}
         >
-          {checkedBytes > 0 ? `Move ${formatBytes(checkedBytes)} to the bin` : "Move scratch files to the bin"}
+          {checkedBytes > 0 ? `Move scratch files (${formatBytes(checkedBytes)})` : "Move scratch files"}
         </button>
         <button type="button" className={reclaimButton.ghost} onClick={onReview}>
           Advanced review

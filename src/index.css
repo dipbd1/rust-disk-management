@@ -75,6 +75,11 @@ input {
   font: inherit;
 }
 
+:where(button, a, input, select, textarea, [role="tab"], [role="row"], [role="checkbox"]):focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 2px;
+}
+
 .split-column {
   transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }

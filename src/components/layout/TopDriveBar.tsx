@@ -2,6 +2,10 @@ import { diskUsedRatio, formatDuration } from "../../lib/format";
 import { breadcrumbs } from "../../lib/paths";
 import { useFileStore } from "../../store/useFileStore";
 
+function driveRootKey(path: string): string {
+  return path.replace(/\\+$/, "").toLowerCase();
+}
+
 export function TopDriveBar() {
   const drives = useFileStore((state) => state.drives);
   const activeDrive = useFileStore((state) => state.activeDrive);
@@ -36,7 +40,17 @@ export function TopDriveBar() {
               type="button"
               title={`${drive.label || drive.mount} · ${drive.fileSystem}`}
               className={`flex h-8 items-center gap-2 rounded-full border px-2.5 text-xs ${active ? "border-cyan-300/70 bg-cyan-400/10" : "border-white/10 hover:bg-white/5"}`}
-              onClick={() => void scanDrive(drive.mount)}
+              onClick={() => {
+                const { rootId, scanStatus: status } = useFileStore.getState();
+                const chip = driveRootKey(drive.mount);
+                const root = rootId ? driveRootKey(rootId) : "";
+                const sameRoot = chip.length > 0 && root === chip;
+                if (sameRoot && rootId && (status === "scanning" || status === "ready" || status === "cancelled")) {
+                  if (status === "ready" || status === "cancelled") void focusNode(rootId);
+                  return;
+                }
+                void scanDrive(drive.mount);
+              }}
             >
               <span className="font-medium">{drive.mount.replace(/\\$/, "")}</span>
               <span className="h-1 w-12 overflow-hidden rounded bg-white/10">

@@ -141,7 +141,7 @@ export function ViewerInspector({ collapsed, onToggle }: ViewerInspectorProps) {
               <button
                 type="button"
                 onClick={() => requestTrash(activeNode.path)}
-                className="flex items-center justify-center rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-red-300 hover:bg-red-500/20"
+                className="flex items-center justify-center rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-200 hover:bg-amber-500/20"
                 title="Move to Recycle Bin"
               >
                 Trash

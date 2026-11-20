@@ -34,7 +34,7 @@ export function NodeContextMenu({ node, children }: { node: FileNode; children: 
               else selectNode(node.id);
             }}
           >
-            Focus in 3D
+            Show in the liquid view
           </ContextMenuItem>
           <ContextMenuItem className={itemClass} onSelect={() => void reveal(node.path)}>
             Reveal in Explorer

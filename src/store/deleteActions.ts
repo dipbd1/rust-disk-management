@@ -18,6 +18,12 @@ function canDestroy(state: FileStore, path: string): boolean {
   return node.kind !== "aggregate" && !isDriveRoot(node.path);
 }
 
+function pathTail(path: string): string {
+  const slash = path.replace(/[\\/]+$/, "");
+  const cut = Math.max(slash.lastIndexOf("\\"), slash.lastIndexOf("/"));
+  return (cut >= 0 ? slash.slice(cut + 1) : slash) || path;
+}
+
 function inGraph(view: GraphView | null, path: string): boolean {
   if (!view) return false;
   if (view.focus.path === path || view.focus.id === path) return true;
@@ -64,6 +70,21 @@ async function commit(set: SetFile, get: GetFile, path: string, mode: "trash" | 
 }
 
 export function requestTrash(set: SetFile, get: GetFile, path: string): void {
+  if (get().recyclePrompt) return;
+  if (!canDestroy(get(), path)) return;
+  const node = nodeByPath(get().nodes, path);
+  const name = node?.name || pathTail(path);
+  set({
+    recyclePrompt: {
+      kind: "path",
+      path,
+      title: "Move to the Recycle Bin?",
+      body: `${name}\n${path}\n\nYou can restore it from the Recycle Bin.`,
+    },
+  });
+}
+
+export function beginTrash(set: SetFile, get: GetFile, path: string): void {
   if (!canDestroy(get(), path)) return;
   if (inGraph(get().graphView, path)) {
     set({ drainingId: path });

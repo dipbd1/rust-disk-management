@@ -21,11 +21,11 @@ The left pane tabs are Explorer, Largest, Search, Types, Reclaim, Duplicates, an
 - **Types** shows the top 12 extensions by bytes, plus Other. Choosing one opens that file list.
 - **Growth** compares this finished scan with the last snapshot of the same root: folders that grew, and large files that are new or bigger.
 
-The right pane is the liquid graph of the focused folder: at most 60 children, plus one aggregate for the rest. **Area map** draws those same nodes as a squarified map. Liquid stays the default. Clicking a folder focuses it.
+The right pane is the liquid graph of the focused folder: at most 60 children, plus one aggregate for the rest. **Area map** draws those same nodes as a squarified map. Liquid stays the default. A click selects. A double click opens a folder.
 
 ## Cleanup rules
 
-Delete moves the selection to the Recycle Bin and reports the freed bytes. Shift+Delete asks before permanent delete. A drive root cannot be deleted.
+Delete asks, then moves the selection to the Recycle Bin and reports the freed bytes. Shift+Delete asks before permanent delete. A drive root cannot be deleted. Clicking the drive that is already the scan root returns to that root and does not start another walk.
 
 **Reclaim** lists only catalog matches, each with a sentence:
 

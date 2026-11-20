@@ -10,6 +10,7 @@ import {
 } from "../services/tauriBridge";
 import type { DuplicateProgress, RecycleBatch } from "../types/filesystem";
 import { applyDelete } from "./cache";
+import { beginTrash } from "./deleteActions";
 import type { FileStore, RecyclePrompt } from "./types";
 import type { StoreApi } from "zustand";
 
@@ -97,6 +98,10 @@ export async function confirmRecycle(set: SetFile, get: GetFile): Promise<void> 
     if (prompt.kind === "duplicates") {
       applyBatch(set, await recycleDuplicateCopies(prompt.paths));
       set({ duplicateRun: null });
+      return;
+    }
+    if (prompt.kind === "path") {
+      beginTrash(set, get, prompt.path);
       return;
     }
     const emptied = await emptyRecycleBin();

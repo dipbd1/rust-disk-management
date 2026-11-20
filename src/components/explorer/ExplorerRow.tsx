@@ -67,25 +67,14 @@ export function ExplorerRow({ node, depth, selected, expanded, showChevron }: Ex
       return;
     }
     selectNode(node.id);
-    if (sameLevel(node)) {
-      useVisualizerStore.getState().triggerCenterNode(node.id);
-      return;
-    }
-    if (node.kind === "folder") {
-      void focusNode(node.id);
-      return;
-    }
-    if (node.parentId) {
-      void focusNode(node.parentId).then(() => {
-        useVisualizerStore.getState().triggerCenterNode(node.id);
-      });
-    }
+    if (sameLevel(node)) useVisualizerStore.getState().triggerCenterNode(node.id);
   };
 
   return (
     <NodeContextMenu node={node}>
       <div
         role="row"
+        tabIndex={0}
         title={node.path}
         aria-selected={selected}
         aria-expanded={showChevron ? expanded : undefined}
@@ -93,6 +82,10 @@ export function ExplorerRow({ node, depth, selected, expanded, showChevron }: Ex
         style={{ paddingLeft: 8 + depth * 14 }}
         onClick={selectInPlace}
         onDoubleClick={openNode}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.target !== event.currentTarget) return;
+          openNode();
+        }}
       >
         {showChevron ? (
           <button

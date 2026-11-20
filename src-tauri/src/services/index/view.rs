@@ -175,9 +175,10 @@ impl ScanIndex {
     fn aggregate(&self, parent: NodeId, count: u64, size_bytes: u64) -> FileNode {
         let parent = &self.nodes[parent.0 as usize];
         let id = format!("aggregate:{}", parent.path);
+        let noun = if count == 1 { "item" } else { "items" };
         FileNode {
             id: id.clone(),
-            name: format!("Other Small Files ({count} items)"),
+            name: format!("Other Small Files ({count} {noun})"),
             path: id,
             parent_id: Some(parent.path.clone()),
             kind: NodeKind::Aggregate,
@@ -252,7 +253,7 @@ mod tests {
         let other = view.other.expect("aggregate");
         assert_eq!(other.kind, NodeKind::Aggregate);
         assert_eq!(other.id, "aggregate:C:\\data");
-        assert_eq!(other.name, "Other Small Files (1 items)");
+        assert_eq!(other.name, "Other Small Files (1 item)");
         assert_eq!(other.child_count, 1);
         assert_eq!(other.size_bytes, 1);
     }

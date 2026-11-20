@@ -20,13 +20,13 @@ A high-performance desktop storage analyzer and file management utility for Wind
 - **FR-3.1:** The left pane shall render a virtualized tree of folders and files capable of holding 100,000+ entries (`@tanstack/react-virtual`). Folders collapse. Files are leaves.
 - **FR-3.2:** Nodes in the tree shall be sorted in descending order by cumulative byte size by default.
 - **FR-3.3:** Right-clicking any node shall open a custom Context Menu providing:
-  - Focus Node in 3D View
+  - Show in the liquid view
   - Reveal in Windows File Explorer
   - Move to Recycle Bin
   - Permanently Delete (with confirmation prompt)
   - Copy Full Path
 - **FR-3.4:** The left column shall contain the virtualized folder tree and a docked selection-details panel. The panel collapses to its header and resizes vertically against the tree.
-- **FR-3.5:** A single click on a folder or file already in the current 2D view selects it and centers that ball. The other balls stay. A single click that moves to a different folder opens that folder and its children. A double click opens the folder or file. A click during a scan selects the row and does not open it.
+- **FR-3.5:** A single click selects the row. When that node is already in the liquid view, the ball centers and the others stay. A double click, or Enter on the row, opens the folder or file. A click during a scan selects the row and does not open it.
 
 #### FR-4: Right Pane — 3D Liquid Sphere Graph
 - **FR-4.1:** The right pane shall render the currently focused folder as a central 3D sphere and its immediate children as connected satellite spheres using a 3D force-directed layout (`d3-force-3d`).
@@ -67,10 +67,10 @@ A high-performance desktop storage analyzer and file management utility for Wind
 
 #### FR-10: Area map, same cap
 - **FR-10.1:** A visualizer toggle draws a squarified map of the current graph view: the focused folder, at most 60 children, and the existing aggregate. The liquid graph stays the default.
-- **FR-10.2:** Clicking a folder focuses it, the same as a sphere. Layout runs when the graph payload or the pane size changes, not inside `useFrame`. `GRAPH_CHILD_CAP` stays 60.
+- **FR-10.2:** A click selects a tile, including the aggregate. A double click on a folder focuses it, the same as a liquid ball. Layout runs when the graph payload or the pane size changes, not inside `useFrame`. `GRAPH_CHILD_CAP` stays 60.
 
 #### FR-11: Delete means the Recycle Bin
-- **FR-11.1:** Delete moves the selection to the Recycle Bin and toasts the freed bytes. Shift+Delete keeps the permanent-delete confirm. Drive roots cannot be deleted.
+- **FR-11.1:** Delete asks, then moves the selection to the Recycle Bin and toasts the freed bytes. A node in the current graph drains after that confirm. Shift+Delete keeps the permanent-delete confirm. Drive roots cannot be deleted.
 
 ### 3. Non-Functional Requirements (NFR)
 - **NFR-1 (Frame Rate):** The 3D viewport and 2D UI must maintain 60 FPS during idle, camera orbit, and tree scrolling on modern integrated or discrete GPUs.

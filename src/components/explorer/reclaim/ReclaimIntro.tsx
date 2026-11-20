@@ -12,11 +12,12 @@ export function ReclaimIntro({ onScan }: { onScan: () => void }) {
       <ul className="mt-4 grid grid-cols-1 gap-y-2 @min-[420px]:grid-cols-2" aria-label="What this scan looks for">
         {RECLAIM_LOOKUPS.map((label) => (
           <li key={label} className="flex min-w-0 items-center gap-2 text-sm text-slate-200">
-            <Check />
+            <span className="size-1.5 shrink-0 rounded-full bg-slate-500" aria-hidden="true" />
             <span className="min-w-0">{label}</span>
           </li>
         ))}
       </ul>
+      <p className="mt-3 text-xs text-slate-400">System files are only explained. The Recycle Bin is emptied from its own button.</p>
       <button
         type="button"
         className={`${reclaimButton.primary} mt-5 self-start`}
@@ -26,13 +27,5 @@ export function ReclaimIntro({ onScan }: { onScan: () => void }) {
         Scan
       </button>
     </div>
-  );
-}
-
-function Check() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true">
-      <path d="M3.5 8.2 6.4 11 12.5 4.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
