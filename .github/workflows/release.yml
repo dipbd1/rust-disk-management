@@ -28,6 +28,21 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # Tag pushes use the pushed tag (e.g. v0.1.1). Manual runs use the
+      # version from tauri.conf.json so draft names stay in sync with the bump.
+      - name: Resolve release identity
+        id: release_meta
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VER=$(node -p "require('./src-tauri/tauri.conf.json').version")
+            TAG="v${VER}-draft-${{ github.run_number }}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "name=Liquid Storage Manager ${TAG}" >> "$GITHUB_OUTPUT"
+
       # createUpdaterArtifacts + pubkey require TAURI_SIGNING_PRIVATE_KEY.
       # When the secret is missing, merge a config overlay so MSI/NSIS still build.
       - name: Resolve tauri build args
@@ -57,18 +72,24 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
           projectPath: .
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('v0.1.0-draft-{0}', github.run_number) }}
-          releaseName: Liquid Storage Manager ${{ github.ref_type == 'tag' && github.ref_name || format('v0.1.0-draft-{0}', github.run_number) }}
+          tagName: ${{ steps.release_meta.outputs.tag }}
+          releaseName: ${{ steps.release_meta.outputs.name }}
           releaseBody: |
-            Windows installers for Liquid Storage Manager.
+            ## Liquid Storage Manager ${{ steps.release_meta.outputs.tag }}
 
-            - MSI and NSIS packages (x64)
-            - Windows-only; admin elevation optional for faster NTFS MFT scans
-            - Auto-update: when signing secrets are set, this release also gets `latest.json` and `.sig` files for the in-app updater
-            - See CHANGELOG.md, RELEASING.md, and the README install notes
+            Windows installers (x64):
+
+            - **NSIS** setup (`.exe`) — preferred for in-app updates
+            - **MSI** (WiX)
+
+            Notes:
+
+            - Windows-only; admin elevation is optional (faster NTFS MFT scans)
+            - When `TAURI_SIGNING_PRIVATE_KEY` is set, this draft also includes `.sig` files and `latest.json` for the in-app updater
+            - The updater endpoint is `releases/latest/download/latest.json` — **publish** this draft when users should receive the update (drafts are not served by `/releases/latest/`)
+            - Changelog: see `CHANGELOG.md`. Signing / cut steps: see `RELEASING.md`.
 
             Draft release — review artifacts before publishing.
-            The in-app updater reads `releases/latest/download/latest.json`, so publish (do not leave draft-only) when users should receive the update.
           releaseDraft: true
           prerelease: false
           # uploadUpdaterJson / uploadUpdaterSignatures default to true; they are no-ops without .sig files.

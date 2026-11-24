@@ -45,13 +45,14 @@ npm run tauri build -- --config "{\"bundle\":{\"createUpdaterArtifacts\":false}}
 
 ## Cut a release
 
-1. Bump `version` in `src-tauri/tauri.conf.json` and root `package.json` (keep them in sync).
-2. Update `CHANGELOG.md`.
-3. Commit, push to `main`, then tag and push:
+1. Bump `version` in `src-tauri/Cargo.toml` (and its `Cargo.lock` package entry), `src-tauri/tauri.conf.json`, and root `package.json` / `package-lock.json` (keep them in sync). Do **not** point WinGet/Scoop URLs or hashes at the new version until release assets exist — see `packaging/README.md`.
+2. Update `CHANGELOG.md` (Keep a Changelog sections + compare links).
+3. Merge to `main`, then tag and push:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 4. Wait for the Release workflow. Open the draft release, check MSI/NSIS (and `.sig` / `latest.json` when signing secrets are present), then publish.
+5. After publish: WinGet updates via `winget-releaser` once `WINGET_TOKEN` is set and 0.1.0 is accepted; Scoop follows via `checkver` / `autoupdate` (details in `packaging/README.md`).

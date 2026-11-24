@@ -1,6 +1,6 @@
 [package]
 name = "disk-space-management"
-version = "0.1.0"
+version = "0.1.1"
 description = "Windows disk map with a Rust scan index and a liquid folder view (Liquid Storage Manager)"
 authors = ["Dip Chowdhury"]
 edition = "2024"
