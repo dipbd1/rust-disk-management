@@ -8,6 +8,59 @@ A Windows disk map. The scan stays in Rust. The window shows a size-sorted folde
 
 **License:** [MIT](LICENSE) © 2026 Dip Chowdhury.
 
+[Download for Windows](https://github.com/dipbd1/rust-disk-management/releases/latest) · [Demo video](docs/media/demo.mp4)
+
+<!--
+  Inline README video (optional):
+  GitHub only plays videos inline in a README when they are hosted as user-attachments.
+  Drag docs/media/demo.mp4 into a GitHub issue/PR comment, copy the resulting
+  https://github.com/user-attachments/... URL, and paste that URL alone on the next line
+  (replacing this comment block) for an inline player.
+-->
+
+![Liquid Storage Manager — bubble-map drill-down into a folder, then switch to the area map](docs/media/demo.gif)
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="docs/media/01-bubble-map.png"><img src="docs/media/01-bubble-map.png" alt="Bubble map of drive C: with liquid spheres sized by folder" /></a><br />
+      <em>Map — liquid bubble view of C:</em>
+    </td>
+    <td align="center" width="50%">
+      <a href="docs/media/05-drill-down.png"><img src="docs/media/05-drill-down.png" alt="Bubble map after drilling into a deep game folder" /></a><br />
+      <em>Map — drill into a folder</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="docs/media/02-explorer.png"><img src="docs/media/02-explorer.png" alt="Explorer tree with size bars beside the bubble map" /></a><br />
+      <em>Explorer — size-sorted folder tree</em>
+    </td>
+    <td align="center" width="50%">
+      <a href="docs/media/03-types.png"><img src="docs/media/03-types.png" alt="Types tab listing top extensions by bytes" /></a><br />
+      <em>Types — top extensions by bytes</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="docs/media/04-reclaim.png"><img src="docs/media/04-reclaim.png" alt="Reclaim tab with scratch, rebuild, and recycle bin totals" /></a><br />
+      <em>Reclaim — scratch files, rebuilds, and the bin</em>
+    </td>
+    <td align="center" width="50%">
+      <a href="docs/media/06-area-map.png"><img src="docs/media/06-area-map.png" alt="Squarified area map of drive C:" /></a><br />
+      <em>Area map — treemap of C:</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <a href="docs/media/07-area-map-detail.png"><img src="docs/media/07-area-map-detail.png" alt="Area map drilled into Windows SysWOW64" width="49%" /></a><br />
+      <em>Area map — Windows\SysWOW64 in detail</em>
+    </td>
+  </tr>
+</table>
+
 ## Install
 
 Download the MSI or NSIS installer from [GitHub Releases](https://github.com/dipbd1/rust-disk-management/releases). Prefer a published release over a draft when both exist.
