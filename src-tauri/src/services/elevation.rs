@@ -5,9 +5,9 @@ use crate::services::drives;
 /// `TokenElevation` is the split-token check. `IsUserAnAdmin` is the wrong question.
 pub fn status() -> Result<ElevationStatus, AppError> {
     let drives = drives::list_drives()?;
-    let ntfs_present = drives.iter().any(|drive| {
-        !drive.is_removable && drive.file_system.eq_ignore_ascii_case("NTFS")
-    });
+    let ntfs_present = drives
+        .iter()
+        .any(|drive| !drive.is_removable && drive.file_system.eq_ignore_ascii_case("NTFS"));
     Ok(ElevationStatus {
         elevated: is_elevated(),
         ntfs_present,
@@ -49,7 +49,11 @@ fn relaunch_dev_session() -> Result<bool, AppError> {
 #[cfg(not(debug_assertions))]
 fn relaunch_exe() -> Result<bool, AppError> {
     let exe = std::env::current_exe().map_err(|err| AppError::Elevation(err.to_string()))?;
-    let params = std::env::args().skip(1).map(|arg| quote_arg(&arg)).collect::<Vec<_>>().join(" ");
+    let params = std::env::args()
+        .skip(1)
+        .map(|arg| quote_arg(&arg))
+        .collect::<Vec<_>>()
+        .join(" ");
     shell_execute("runas", &exe.to_string_lossy(), &params)
 }
 
@@ -62,7 +66,11 @@ fn shell_execute(verb: &str, file: &str, params: &str) -> Result<bool, AppError>
             std::ptr::null_mut(),
             verb.as_ptr(),
             file.as_ptr(),
-            if params.is_empty() { std::ptr::null() } else { arguments.as_ptr() },
+            if params.is_empty() {
+                std::ptr::null()
+            } else {
+                arguments.as_ptr()
+            },
             std::ptr::null(),
             windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL,
         )
@@ -78,19 +86,25 @@ fn project_root() -> Result<std::path::PathBuf, AppError> {
         .and_then(|path| path.parent())
         .and_then(|path| path.parent())
         .map(|path| path.to_path_buf())
-        .ok_or_else(|| AppError::Elevation("could not find the project root from the debug exe".into()))
+        .ok_or_else(|| {
+            AppError::Elevation("could not find the project root from the debug exe".into())
+        })
 }
 
 #[cfg(debug_assertions)]
 fn npm_tool(name: &str) -> Result<String, AppError> {
     std::env::var(name).map_err(|_| {
-        AppError::Elevation(format!("{name} is missing; start the dev session with npm run tauri dev"))
+        AppError::Elevation(format!(
+            "{name} is missing; start the dev session with npm run tauri dev"
+        ))
     })
 }
 
 pub(crate) fn is_elevated() -> bool {
     use windows_sys::Win32::Foundation::CloseHandle;
-    use windows_sys::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+    use windows_sys::Win32::Security::{
+        GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation,
+    };
     use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
     unsafe {

@@ -1,5 +1,5 @@
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use tauri::ipc::Channel;
@@ -26,7 +26,10 @@ pub async fn reclaim_report(
 }
 
 #[tauri::command]
-pub async fn reclaim_report_remote(app: AppHandle, app_state: State<'_, Arc<AppState>>) -> Result<(), AppError> {
+pub async fn reclaim_report_remote(
+    app: AppHandle,
+    app_state: State<'_, Arc<AppState>>,
+) -> Result<(), AppError> {
     let state = Arc::clone(app_state.inner());
     tauri::async_runtime::spawn(async move {
         if let Err(error) = run_reclaim(app.clone(), state, None).await {
@@ -43,7 +46,10 @@ pub fn cancel_reclaim(app_state: State<'_, Arc<AppState>>) -> Result<(), AppErro
 }
 
 #[tauri::command]
-pub async fn recycle_reclaim(app_state: State<'_, Arc<AppState>>, ids: Vec<String>) -> Result<RecycleBatch, AppError> {
+pub async fn recycle_reclaim(
+    app_state: State<'_, Arc<AppState>>,
+    ids: Vec<String>,
+) -> Result<RecycleBatch, AppError> {
     let state = Arc::clone(app_state.inner());
     let worker = Arc::clone(&state);
     let paths = match tauri::async_runtime::spawn_blocking(move || {
@@ -78,7 +84,13 @@ async fn run_reclaim(
                 return;
             }
             last = Instant::now();
-            publish(&emit_state, &emit_app, generation, &channel, reclaim::index_tick(step));
+            publish(
+                &emit_state,
+                &emit_app,
+                generation,
+                &channel,
+                reclaim::index_tick(step),
+            );
         });
         if outcome.cancelled || cancel_gate.load(Ordering::Relaxed) {
             return None;
@@ -110,7 +122,13 @@ async fn run_reclaim(
             &emit_app,
             generation,
             &channel,
-            reclaim::bin_tick(total, &outcome.group_bytes, report.recycle_bin.size_bytes, true, false),
+            reclaim::bin_tick(
+                total,
+                &outcome.group_bytes,
+                report.recycle_bin.size_bytes,
+                true,
+                false,
+            ),
         );
         Some(report)
     })

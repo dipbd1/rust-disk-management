@@ -43,7 +43,11 @@ pub fn record(dir: &Path, index: &ScanIndex) -> Result<GrowthDelta, AppError> {
     std::fs::create_dir_all(dir).map_err(|err| AppError::History(err.to_string()))?;
     let path = store_path(dir);
     let mut store = read_store(&path);
-    let previous = store.snaps.iter().find(|item| item.root == snap.root).cloned();
+    let previous = store
+        .snaps
+        .iter()
+        .find(|item| item.root == snap.root)
+        .cloned();
     let delta = match &previous {
         Some(prev) => diff(prev, &snap),
         None => GrowthDelta {
@@ -91,15 +95,23 @@ fn largest_files(index: &ScanIndex) -> Vec<FileSnap> {
         if index.kind_at(id) != Some(NodeKind::File) {
             continue;
         }
-        let Some(path) = index.path_at(id) else { continue };
-        let Some(name) = index.name_at(id) else { continue };
+        let Some(path) = index.path_at(id) else {
+            continue;
+        };
+        let Some(name) = index.name_at(id) else {
+            continue;
+        };
         files.push(FileSnap {
             path: path.to_string(),
             name: name.to_string(),
             size_bytes: index.size_at(id).unwrap_or(0),
         });
     }
-    files.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes).then_with(|| a.path.cmp(&b.path)));
+    files.sort_by(|a, b| {
+        b.size_bytes
+            .cmp(&a.size_bytes)
+            .then_with(|| a.path.cmp(&b.path))
+    });
     files.truncate(GROWTH_FILE_CAP);
     files
 }
@@ -122,14 +134,26 @@ fn diff(previous: &Snapshot, current: &Snapshot) -> GrowthDelta {
         }
         let previous_bytes = prev_children.get(child.path.as_str()).copied().unwrap_or(0);
         if child.size_bytes > previous_bytes {
-            entries.push(entry(&child.path, &child.name, NodeKind::Folder, previous_bytes, child.size_bytes));
+            entries.push(entry(
+                &child.path,
+                &child.name,
+                NodeKind::Folder,
+                previous_bytes,
+                child.size_bytes,
+            ));
         }
     }
     for file in &current.files {
         let known = prev_files.get(file.path.as_str()).copied();
         let previous_bytes = known.unwrap_or(0);
         if known.is_none() || file.size_bytes > previous_bytes {
-            entries.push(entry(&file.path, &file.name, NodeKind::File, previous_bytes, file.size_bytes));
+            entries.push(entry(
+                &file.path,
+                &file.name,
+                NodeKind::File,
+                previous_bytes,
+                file.size_bytes,
+            ));
         }
     }
     entries.sort_by(|a, b| b.delta_bytes.cmp(&a.delta_bytes).then(a.path.cmp(&b.path)));
@@ -142,7 +166,13 @@ fn diff(previous: &Snapshot, current: &Snapshot) -> GrowthDelta {
     }
 }
 
-fn entry(path: &str, name: &str, kind: NodeKind, previous_bytes: u64, size_bytes: u64) -> GrowthEntry {
+fn entry(
+    path: &str,
+    name: &str,
+    kind: NodeKind,
+    previous_bytes: u64,
+    size_bytes: u64,
+) -> GrowthEntry {
     GrowthEntry {
         path: path.to_string(),
         name: name.to_string(),
@@ -203,9 +233,24 @@ mod tests {
         ]);
         let delta = record(&dir, &second).unwrap();
         assert!(delta.has_baseline);
-        assert!(delta.entries.iter().any(|entry| entry.path == "C:\\data\\docs" && entry.delta_bytes == 50));
-        assert!(delta.entries.iter().any(|entry| entry.path == "C:\\data\\new.bin" && entry.previous_bytes == 0));
-        assert!(delta.entries.iter().all(|entry| entry.path != "C:\\data\\big.bin"));
+        assert!(
+            delta
+                .entries
+                .iter()
+                .any(|entry| entry.path == "C:\\data\\docs" && entry.delta_bytes == 50)
+        );
+        assert!(
+            delta
+                .entries
+                .iter()
+                .any(|entry| entry.path == "C:\\data\\new.bin" && entry.previous_bytes == 0)
+        );
+        assert!(
+            delta
+                .entries
+                .iter()
+                .all(|entry| entry.path != "C:\\data\\big.bin")
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

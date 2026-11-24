@@ -18,7 +18,10 @@ pub fn trash_many(state: &AppState, paths: &[String]) -> Result<RecycleBatch, Ap
         freed_bytes = freed_bytes.saturating_add(result.freed_bytes);
         results.push(result);
     }
-    Ok(RecycleBatch { freed_bytes, results })
+    Ok(RecycleBatch {
+        freed_bytes,
+        results,
+    })
 }
 
 pub fn permanent_delete(state: &AppState, path: &str) -> Result<DeleteResult, AppError> {

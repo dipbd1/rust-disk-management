@@ -29,7 +29,13 @@ impl Table {
         Ok((index, progress))
     }
 
-    pub(super) fn progress(&self, root: &str, generation: u64, started: Instant, done: bool) -> ScanProgress {
+    pub(super) fn progress(
+        &self,
+        root: &str,
+        generation: u64,
+        started: Instant,
+        done: bool,
+    ) -> ScanProgress {
         let mut ranked: Vec<(u64, String, u64)> = self
             .root_children
             .iter()
@@ -46,7 +52,10 @@ impl Table {
         ranked.truncate(PROGRESS_PREVIEW);
         let folder_ids: Vec<u64> = ranked.iter().map(|(_, _, id)| *id).collect();
         let satellites = self.satellites(root, &folder_ids);
-        let top_level = ranked.into_iter().filter_map(|(_, _, id)| self.child_node(root, id)).collect();
+        let top_level = ranked
+            .into_iter()
+            .filter_map(|(_, _, id)| self.child_node(root, id))
+            .collect();
         let current = self
             .last
             .and_then(|id| self.path_of(id, root))
@@ -75,7 +84,13 @@ impl Table {
                 let Some(rec) = self.records.get(id) else {
                     continue;
                 };
-                (rec.is_dir, rec.skip, rec.reparse, rec.name.clone(), rec.rolled)
+                (
+                    rec.is_dir,
+                    rec.skip,
+                    rec.reparse,
+                    rec.name.clone(),
+                    rec.rolled,
+                )
             };
             if !is_dir || skip || reparse {
                 continue;
@@ -138,11 +153,12 @@ impl Table {
             }
             let path = join_child(&parent_path, &rec.name);
             index.insert_ready(path.clone(), rec.is_dir, rec.own)?;
-            if rec.is_dir && !rec.reparse {
-                if let Some(list) = kids.get(&id) {
-                    for child in list {
-                        queue.push_back((*child, path.clone()));
-                    }
+            if rec.is_dir
+                && !rec.reparse
+                && let Some(list) = kids.get(&id)
+            {
+                for child in list {
+                    queue.push_back((*child, path.clone()));
                 }
             }
         }
@@ -219,6 +235,8 @@ impl Table {
     }
 }
 
+// Mirrors FileNode field set used by the live MFT preview; splitting would duplicate call sites.
+#[allow(clippy::too_many_arguments)]
 fn file_node(
     path: &str,
     name: &str,
@@ -235,8 +253,16 @@ fn file_node(
         name: name.to_string(),
         path: path.to_string(),
         parent_id,
-        kind: if is_dir { NodeKind::Folder } else { NodeKind::File },
-        category: if is_dir { FileCategory::Folder } else { classify(name, false, size) },
+        kind: if is_dir {
+            NodeKind::Folder
+        } else {
+            NodeKind::File
+        },
+        category: if is_dir {
+            FileCategory::Folder
+        } else {
+            classify(name, false, size)
+        },
         size_bytes: size,
         child_count,
         folder_count,
@@ -246,7 +272,11 @@ fn file_node(
 }
 
 fn percent(size: u64, parent: u64) -> f32 {
-    if parent == 0 { 0.0 } else { (size as f64 / parent as f64) as f32 }
+    if parent == 0 {
+        0.0
+    } else {
+        (size as f64 / parent as f64) as f32
+    }
 }
 
 fn join_child(parent: &str, name: &str) -> String {

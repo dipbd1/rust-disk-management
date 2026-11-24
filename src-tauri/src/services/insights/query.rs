@@ -1,4 +1,4 @@
-﻿use std::collections::HashMap;
+use std::collections::HashMap;
 
 use crate::error::AppError;
 use crate::limits::{self, page_limit};
@@ -36,7 +36,11 @@ fn build_order(index: &ScanIndex, files: &[u32], sort: LargestSort, descending: 
             let size = index.size_at(*id).unwrap_or(0);
             let name = index.name_at(*id).unwrap_or("").to_ascii_lowercase();
             let parent = if sort == LargestSort::Folder {
-                index.path_at(*id).and_then(ready_parent).unwrap_or("").to_ascii_lowercase()
+                index
+                    .path_at(*id)
+                    .and_then(ready_parent)
+                    .unwrap_or("")
+                    .to_ascii_lowercase()
             } else {
                 String::new()
             };
@@ -45,16 +49,30 @@ fn build_order(index: &ScanIndex, files: &[u32], sort: LargestSort, descending: 
         .collect();
     keys.sort_by(|a, b| match sort {
         LargestSort::Size => {
-            let size = if descending { b.0.cmp(&a.0) } else { a.0.cmp(&b.0) };
+            let size = if descending {
+                b.0.cmp(&a.0)
+            } else {
+                a.0.cmp(&b.0)
+            };
             size.then_with(|| a.1.cmp(&b.1))
         }
         LargestSort::Name => {
-            let name = if descending { b.1.cmp(&a.1) } else { a.1.cmp(&b.1) };
+            let name = if descending {
+                b.1.cmp(&a.1)
+            } else {
+                a.1.cmp(&b.1)
+            };
             name.then_with(|| b.0.cmp(&a.0))
         }
         LargestSort::Folder => {
-            let folder = if descending { b.2.cmp(&a.2) } else { a.2.cmp(&b.2) };
-            folder.then_with(|| b.0.cmp(&a.0)).then_with(|| a.1.cmp(&b.1))
+            let folder = if descending {
+                b.2.cmp(&a.2)
+            } else {
+                a.2.cmp(&b.2)
+            };
+            folder
+                .then_with(|| b.0.cmp(&a.0))
+                .then_with(|| a.1.cmp(&b.1))
         }
     });
     keys.into_iter().map(|(_, _, _, id)| id).collect()
@@ -79,7 +97,9 @@ pub fn search_index(
     if cache.search_key != needle {
         let mut hits = Vec::new();
         for id in index.live_ids() {
-            let Some(name) = index.name_at(id) else { continue };
+            let Some(name) = index.name_at(id) else {
+                continue;
+            };
             if !name.to_ascii_lowercase().contains(&needle) {
                 continue;
             }
@@ -113,15 +133,21 @@ pub fn extension_files(
     limit: u32,
 ) -> Result<InsightPage, AppError> {
     let cache = ensure(index, slot)?;
-    let key = extension.trim().trim_start_matches('.').to_ascii_lowercase();
+    let key = extension
+        .trim()
+        .trim_start_matches('.')
+        .to_ascii_lowercase();
     let top = cache.top.clone();
     let files = cache.files_desc.clone();
     let mut ids = Vec::new();
     for id in files {
-        let Some(name) = index.name_at(id) else { continue };
+        let Some(name) = index.name_at(id) else {
+            continue;
+        };
         let ext = file_extension(name);
         let hit = if other {
-            ext.as_ref().is_none_or(|value| !top.iter().any(|item| item == value))
+            ext.as_ref()
+                .is_none_or(|value| !top.iter().any(|item| item == value))
         } else {
             ext.as_deref() == Some(key.as_str())
         };
@@ -157,7 +183,9 @@ fn build(index: &ScanIndex, revision: u64) -> InsightCache {
         if index.kind_at(id) != Some(NodeKind::File) {
             continue;
         }
-        let Some(name) = index.name_at(id) else { continue };
+        let Some(name) = index.name_at(id) else {
+            continue;
+        };
         let size = index.size_at(id).unwrap_or(0);
         files.push((size, name.to_ascii_lowercase(), id));
         match file_extension(name) {
@@ -174,7 +202,10 @@ fn build(index: &ScanIndex, revision: u64) -> InsightCache {
     }
     files.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
     let files_desc = files.into_iter().map(|(_, _, id)| id).collect();
-    let mut ranked: Vec<(String, u64, u64)> = ext_bytes.into_iter().map(|(ext, (bytes, count))| (ext, bytes, count)).collect();
+    let mut ranked: Vec<(String, u64, u64)> = ext_bytes
+        .into_iter()
+        .map(|(ext, (bytes, count))| (ext, bytes, count))
+        .collect();
     ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
     let mut rows = Vec::new();
     let mut top = Vec::new();
@@ -227,7 +258,11 @@ fn page_of(index: &ScanIndex, ids: &[u32], offset: u32, limit: u32) -> InsightPa
             .filter_map(|id| index.file_node_at(*id))
             .collect()
     };
-    InsightPage { total, offset, nodes }
+    InsightPage {
+        total,
+        offset,
+        nodes,
+    }
 }
 
 #[cfg(test)]

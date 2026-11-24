@@ -11,12 +11,18 @@ use crate::services::watcher::FolderWatcher;
 use crate::state::AppState;
 
 #[tauri::command]
-pub fn trash_path(app_state: State<'_, Arc<AppState>>, path: String) -> Result<DeleteResult, AppError> {
+pub fn trash_path(
+    app_state: State<'_, Arc<AppState>>,
+    path: String,
+) -> Result<DeleteResult, AppError> {
     deletion::trash_indexed(&app_state, &path)
 }
 
 #[tauri::command]
-pub fn permanent_delete(app_state: State<'_, Arc<AppState>>, path: String) -> Result<DeleteResult, AppError> {
+pub fn permanent_delete(
+    app_state: State<'_, Arc<AppState>>,
+    path: String,
+) -> Result<DeleteResult, AppError> {
     deletion::permanent_delete(&app_state, &path)
 }
 
@@ -37,8 +43,11 @@ pub fn copy_path(path: String) -> Result<(), AppError> {
     if path.is_empty() {
         return Err(AppError::Clipboard("empty path".into()));
     }
-    let mut clipboard = arboard::Clipboard::new().map_err(|err| AppError::Clipboard(err.to_string()))?;
-    clipboard.set_text(path).map_err(|err| AppError::Clipboard(err.to_string()))
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|err| AppError::Clipboard(err.to_string()))?;
+    clipboard
+        .set_text(path)
+        .map_err(|err| AppError::Clipboard(err.to_string()))
 }
 
 #[tauri::command]

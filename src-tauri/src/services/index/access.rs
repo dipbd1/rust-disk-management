@@ -22,11 +22,15 @@ impl ScanIndex {
     }
 
     pub(crate) fn name_at(&self, index: u32) -> Option<&str> {
-        self.nodes.get(index as usize).map(|node| node.name.as_str())
+        self.nodes
+            .get(index as usize)
+            .map(|node| node.name.as_str())
     }
 
     pub(crate) fn path_at(&self, index: u32) -> Option<&str> {
-        self.nodes.get(index as usize).map(|node| node.path.as_str())
+        self.nodes
+            .get(index as usize)
+            .map(|node| node.path.as_str())
     }
 
     pub(crate) fn kind_at(&self, index: u32) -> Option<NodeKind> {
@@ -39,10 +43,7 @@ impl ScanIndex {
 
     pub(crate) fn file_node_at(&self, index: u32) -> Option<FileNode> {
         let node = self.nodes.get(index as usize)?;
-        let live = self
-            .by_path
-            .get(&node.path)
-            .is_some_and(|id| id.0 == index);
+        let live = self.by_path.get(&node.path).is_some_and(|id| id.0 == index);
         if !live {
             return None;
         }

@@ -184,7 +184,9 @@ fn is_virtual_disk(name: &str, path: &str) -> bool {
     if name == "ext4.vhdx" || name == "docker_data.vhdx" {
         return true;
     }
-    segments(path).iter().any(|seg| seg == "docker" || seg == "wsl")
+    segments(path)
+        .iter()
+        .any(|seg| seg == "docker" || seg == "wsl")
 }
 
 fn ends_with(segs: &[String], tail: &[&str]) -> bool {
@@ -198,8 +200,12 @@ fn ends_with(segs: &[String], tail: &[&str]) -> bool {
 }
 
 fn has_seq(segs: &[String], needle: &[&str]) -> bool {
-    segs.windows(needle.len())
-        .any(|window| window.iter().zip(needle).all(|(seg, expected)| seg == expected))
+    segs.windows(needle.len()).any(|window| {
+        window
+            .iter()
+            .zip(needle)
+            .all(|(seg, expected)| seg == expected)
+    })
 }
 
 fn browser_cache(segs: &[String], name: &str) -> Option<DirHit> {

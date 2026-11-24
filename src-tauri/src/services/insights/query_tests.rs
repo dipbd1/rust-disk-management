@@ -31,7 +31,9 @@ fn largest_files_page_and_clamp() {
     let mut index = ScanIndex::new(1);
     index.insert("C:\\data", true, 0).unwrap();
     for n in 1..=1001 {
-        index.insert(&format!("C:\\data\\f{n:04}.bin"), false, n).unwrap();
+        index
+            .insert(&format!("C:\\data\\f{n:04}.bin"), false, n)
+            .unwrap();
     }
     index.sort_children();
     let mut cache = None;
@@ -94,7 +96,8 @@ fn largest_name_and_folder_orders_differ_from_size() {
             "C:\\data\\z\\zebra.txt",
         ]
     );
-    let by_folder_desc = largest_files(&index, &mut cache, 0, 10, LargestSort::Folder, true).unwrap();
+    let by_folder_desc =
+        largest_files(&index, &mut cache, 0, 10, LargestSort::Folder, true).unwrap();
     assert_eq!(paths_of(&by_folder_desc)[0], "C:\\data\\z\\zebra.txt");
     assert_eq!(paths_of(&by_folder_desc)[1], "C:\\data\\b\\same.bin");
 }
@@ -105,13 +108,18 @@ fn paths_of(page: &crate::models::InsightPage) -> Vec<&str> {
 
 #[test]
 fn search_reaches_descendants_without_using_the_child_page() {
-    let index = index_with(&[("C:\\data\\a\\nested\\FindMe.txt", 12), ("C:\\data\\other.txt", 4)]);
+    let index = index_with(&[
+        ("C:\\data\\a\\nested\\FindMe.txt", 12),
+        ("C:\\data\\other.txt", 4),
+    ]);
     let mut cache = None;
     let found = search_index(&index, &mut cache, "findme", 0, 50).unwrap();
     assert_eq!(found.total, 1);
     assert_eq!(found.nodes[0].name, "FindMe.txt");
     assert_eq!(found.nodes[0].path, "C:\\data\\a\\nested\\FindMe.txt");
-    let direct = index.children_page("C:\\data", 0, 50, Some("findme")).unwrap();
+    let direct = index
+        .children_page("C:\\data", 0, 50, Some("findme"))
+        .unwrap();
     assert!(direct.nodes.is_empty());
     let empty = search_index(&index, &mut cache, "  ", 0, 50).unwrap();
     assert_eq!(empty.total, 0);
@@ -123,7 +131,9 @@ fn extensions_are_ordered_by_bytes_then_other() {
     index.insert("C:\\data", true, 0).unwrap();
     for n in 0..14 {
         let size = (14 - n) as u64 * 100;
-        index.insert(&format!("C:\\data\\f{n}.e{n:02}"), false, size).unwrap();
+        index
+            .insert(&format!("C:\\data\\f{n}.e{n:02}"), false, size)
+            .unwrap();
     }
     index.insert("C:\\data\\README", false, 5).unwrap();
     index.sort_children();

@@ -1,8 +1,8 @@
-﻿mod build;
+mod build;
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use ntfs_reader::{MftScan, NtfsFile, Volume};
@@ -15,8 +15,8 @@ use crate::services::index::ScanIndex;
 use crate::services::paths::ntfs_device_path;
 
 const METAFILES: &[&str] = &[
-    "$MFT", "$MFTMirr", "$LogFile", "$Volume", "$AttrDef", "$Bitmap", "$Boot", "$BadClus", "$Secure",
-    "$UpCase", "$Extend",
+    "$MFT", "$MFTMirr", "$LogFile", "$Volume", "$AttrDef", "$Bitmap", "$Boot", "$BadClus",
+    "$Secure", "$UpCase", "$Extend",
 ];
 
 struct Rec {
@@ -32,6 +32,7 @@ struct Rec {
     skip: bool,
 }
 
+#[derive(Default)]
 struct Table {
     records: HashMap<u64, Rec>,
     pending: HashMap<u64, u64>,
@@ -70,7 +71,10 @@ pub fn try_scan(
     let started = Instant::now();
     let mut table = Table::default();
     let mut last_emit = started;
-    while let Some(chunk) = scan.next_chunk().map_err(|err| AppError::Scan(err.to_string()))? {
+    while let Some(chunk) = scan
+        .next_chunk()
+        .map_err(|err| AppError::Scan(err.to_string()))?
+    {
         for file in chunk.files() {
             if cancel.load(Ordering::Relaxed) {
                 return Ok(Some(table.finish(root, generation, started, 0, true)?));
@@ -83,24 +87,13 @@ pub fn try_scan(
         }
     }
     let denied = scan.corrupt_records();
-    Ok(Some(table.finish(root, generation, started, denied, cancel.load(Ordering::Relaxed))?))
-}
-
-impl Default for Table {
-    fn default() -> Self {
-        Self {
-            records: HashMap::new(),
-            pending: HashMap::new(),
-            root_children: Vec::new(),
-            children: HashMap::new(),
-            root_number: None,
-            root_rolled: 0,
-            root_folders: 0,
-            root_files: 0,
-            scanned: 0,
-            last: None,
-        }
-    }
+    Ok(Some(table.finish(
+        root,
+        generation,
+        started,
+        denied,
+        cancel.load(Ordering::Relaxed),
+    )?))
 }
 
 impl Table {
@@ -128,7 +121,11 @@ impl Table {
         if self.records.contains_key(&number) {
             return;
         }
-        if self.records.get(&parent).is_some_and(|rec| rec.skip || rec.reparse) {
+        if self
+            .records
+            .get(&parent)
+            .is_some_and(|rec| rec.skip || rec.reparse)
+        {
             return;
         }
         let is_dir = file.is_directory();
@@ -231,11 +228,15 @@ impl Table {
 }
 
 fn logical_size(file: &NtfsFile<'_>) -> u64 {
-    file.data_streams().filter(|stream| stream.name.is_none()).map(|stream| stream.size).sum()
+    file.data_streams()
+        .filter(|stream| stream.name.is_none())
+        .map(|stream| stream.size)
+        .sum()
 }
 
 fn skipped_dir(name: &str) -> bool {
-    name.eq_ignore_ascii_case("System Volume Information") || name.eq_ignore_ascii_case("$Recycle.Bin")
+    name.eq_ignore_ascii_case("System Volume Information")
+        || name.eq_ignore_ascii_case("$Recycle.Bin")
 }
 
 fn is_meta(name: &str) -> bool {
@@ -260,6 +261,9 @@ fn is_ntfs_volume(root: &str) -> bool {
     if ok == 0 {
         return false;
     }
-    let end = name.iter().position(|unit| *unit == 0).unwrap_or(name.len());
+    let end = name
+        .iter()
+        .position(|unit| *unit == 0)
+        .unwrap_or(name.len());
     String::from_utf16_lossy(&name[..end]).eq_ignore_ascii_case("NTFS")
 }

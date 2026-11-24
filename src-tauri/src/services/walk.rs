@@ -3,10 +3,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-use windows_sys::Win32::Foundation::{GetLastError, ERROR_ACCESS_DENIED, INVALID_HANDLE_VALUE};
+use windows_sys::Win32::Foundation::{ERROR_ACCESS_DENIED, GetLastError, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::Storage::FileSystem::{
-    FindClose, FindFirstFileExW, FindNextFileW, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT,
-    FIND_FIRST_EX_LARGE_FETCH, FindExInfoBasic, FindExSearchNameMatch, WIN32_FIND_DATAW,
+    FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT, FIND_FIRST_EX_LARGE_FETCH, FindClose,
+    FindExInfoBasic, FindExSearchNameMatch, FindFirstFileExW, FindNextFileW, WIN32_FIND_DATAW,
 };
 
 use crate::error::AppError;
@@ -195,7 +195,11 @@ fn read_dir(dir: &str) -> Batch {
     };
     if handle == INVALID_HANDLE_VALUE {
         let denied = unsafe { GetLastError() } == ERROR_ACCESS_DENIED;
-        return Batch { denied, entries: Vec::new(), child_dirs: Vec::new() };
+        return Batch {
+            denied,
+            entries: Vec::new(),
+            child_dirs: Vec::new(),
+        };
     }
     let mut entries = Vec::new();
     let mut child_dirs = Vec::new();
@@ -211,7 +215,11 @@ fn read_dir(dir: &str) -> Batch {
         }
     }
     unsafe { FindClose(handle) };
-    Batch { denied: false, entries, child_dirs }
+    Batch {
+        denied: false,
+        entries,
+        child_dirs,
+    }
 }
 
 fn take_entry(dir: &str, data: &WIN32_FIND_DATAW) -> Option<Found> {
@@ -235,7 +243,8 @@ fn take_entry(dir: &str, data: &WIN32_FIND_DATAW) -> Option<Found> {
 }
 
 fn skipped_dir(name: &str) -> bool {
-    name.eq_ignore_ascii_case("System Volume Information") || name.eq_ignore_ascii_case("$Recycle.Bin")
+    name.eq_ignore_ascii_case("System Volume Information")
+        || name.eq_ignore_ascii_case("$Recycle.Bin")
 }
 
 fn join_child(parent: &str, name: &str) -> String {

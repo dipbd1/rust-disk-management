@@ -1,12 +1,12 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::error::AppError;
 use crate::models::DuplicateGroup;
 use crate::services::guard::{self, GuardMode};
 use crate::services::paths::{is_drive_root, normalize_path};
 
-use super::{lock, AppState};
+use super::{AppState, lock};
 
 impl AppState {
     pub fn begin_duplicates(&self) -> Result<(u64, Arc<AtomicBool>), AppError> {
@@ -27,7 +27,9 @@ impl AppState {
     }
 
     pub fn cancel_duplicates(&self) {
-        lock(&self.session).duplicate_cancel.store(true, Ordering::Relaxed);
+        lock(&self.session)
+            .duplicate_cancel
+            .store(true, Ordering::Relaxed);
     }
 
     /// Starts a reclaim pass and cancels the previous one. The flag is relaxed; the walk only reads it.
@@ -45,7 +47,9 @@ impl AppState {
     }
 
     pub fn cancel_reclaim(&self) {
-        lock(&self.session).reclaim_cancel.store(true, Ordering::Relaxed);
+        lock(&self.session)
+            .reclaim_cancel
+            .store(true, Ordering::Relaxed);
     }
 
     pub fn finish_duplicates(&self, generation: u64, groups: Vec<DuplicateGroup>) -> bool {
@@ -72,7 +76,9 @@ impl AppState {
         for path in paths {
             let path = normalize_path(path);
             if !allowed.contains(&path) {
-                return Err(AppError::Duplicates(format!("not a duplicate copy: {path}")));
+                return Err(AppError::Duplicates(format!(
+                    "not a duplicate copy: {path}"
+                )));
             }
             if is_drive_root(&path) || guard::is_refused(&path, GuardMode::Duplicates) {
                 return Err(AppError::Protected(path));

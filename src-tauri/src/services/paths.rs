@@ -24,10 +24,10 @@ pub fn normalize_path(input: &str) -> String {
     if parts.is_empty() {
         return String::new();
     }
-    if let Some(first) = parts.first_mut() {
-        if is_drive_spec(first) {
-            first.make_ascii_uppercase();
-        }
+    if let Some(first) = parts.first_mut()
+        && is_drive_spec(first)
+    {
+        first.make_ascii_uppercase();
     }
 
     if parts.len() == 1 {
@@ -131,7 +131,7 @@ pub fn is_reparse_point(meta: &std::fs::Metadata) -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
-        return meta.file_attributes() & 0x400 != 0;
+        meta.file_attributes() & 0x400 != 0
     }
     #[cfg(not(windows))]
     {
