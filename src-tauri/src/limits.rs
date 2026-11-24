@@ -24,6 +24,8 @@ pub const GROWTH_FILE_CAP: usize = 200;
 pub const RECLAIM_DOWNLOAD_MIN_BYTES: u64 = 100 * 1024 * 1024;
 /// Review tier: Downloads files older than this many days.
 pub const RECLAIM_DOWNLOAD_AGE_DAYS: u64 = 30;
+/// Newest deletion-log rows returned to the webview.
+pub const DELETION_LOG_CAP: usize = 200;
 
 /// `0` means the default page. Anything larger than the max is clamped.
 /// Insight pages use the same default and the same clamp.

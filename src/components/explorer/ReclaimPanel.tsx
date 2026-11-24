@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-import { formatBytes } from "../../lib/format";
 import { graphFolder, groupPrompt, initialChecked, reclaimFigures, reclaimHasContent, rowsByTier } from "../../lib/reclaimView";
 import { useFileStore } from "../../store/useFileStore";
 import type { ReclaimReport, ReclaimRow, ReclaimTier } from "../../types/filesystem";
@@ -133,7 +132,10 @@ function ReclaimDashboard({ report }: { report: ReclaimReport }) {
               kind: "reclaim",
               ids: [row.id],
               title: "Move this to the Recycle Bin?",
-              body: `${row.title}\n${row.revealPath}\n\n${formatBytes(row.sizeBytes)}. You can restore it from the bin.`,
+              items: [{ path: row.revealPath, name: row.title, sizeBytes: row.sizeBytes }],
+              totalCount: row.itemCount || 1,
+              totalBytes: row.sizeBytes,
+              note: "You can restore it from the Recycle Bin or the Deleted tab.",
             })
           }
         />

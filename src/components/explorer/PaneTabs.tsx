@@ -11,6 +11,7 @@ const ALL_TABS: { id: LeftTab; label: string }[] = [
   { id: "reclaim", label: "Reclaim" },
   { id: "duplicates", label: "Duplicates" },
   { id: "growth", label: "Growth" },
+  { id: "deleted", label: "Deleted" },
 ];
 
 const TABS = ALL_TABS.filter((tab) => SEARCH_SECTION || tab.id !== "search");

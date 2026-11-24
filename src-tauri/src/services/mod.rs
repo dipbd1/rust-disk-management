@@ -1,5 +1,6 @@
 pub mod category;
 pub mod deletion;
+pub mod deletion_log;
 pub mod drives;
 pub mod duplicates;
 pub mod elevation;
@@ -12,6 +13,7 @@ pub mod paths;
 pub mod preview;
 pub mod reclaim;
 pub mod recycle_bin;
+pub mod restore;
 pub mod scanner;
 pub mod walk;
 pub mod watcher;

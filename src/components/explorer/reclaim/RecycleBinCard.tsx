@@ -22,8 +22,11 @@ export function RecycleBinCard({ bin }: { bin: RecycleBinStatus }) {
           promptRecycle({
             kind: "bin",
             title: "Empty the Recycle Bin?",
-            body: bin.available
-              ? `Windows will permanently remove ${formatBytes(bin.sizeBytes)} already in the bin. They do not return to the bin. On an SSD they are usually not recoverable.`
+            items: [],
+            totalCount: bin.available ? Number(bin.itemCount) : 0,
+            totalBytes: bin.available ? bin.sizeBytes : 0,
+            note: bin.available
+              ? "Windows will permanently remove everything already in the bin. They do not return to the bin. On an SSD they are usually not recoverable."
               : "Windows will permanently remove whatever is in the bin. The size could not be read. They do not return to the bin. On an SSD they are usually not recoverable.",
             outcome: STAYS_FREE_TOAST,
           })
