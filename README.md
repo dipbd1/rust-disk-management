@@ -19,7 +19,7 @@ The left pane tabs are Explorer, Largest, Search, Types, Reclaim, Duplicates, an
 - **Largest** pages files by size. Choosing one selects it and focuses its parent in the graph.
 - **Search** matches names anywhere in the scan. Those results are not the tree.
 - **Types** shows the top 12 extensions by bytes, plus Other. Choosing one opens that file list.
-- **Growth** compares this finished scan with the last snapshot of the same root: folders that grew, and large files that are new or bigger.
+- **Growth** compares this finished scan with the last snapshot of the same root: folders that grew, and large files that are new or bigger. Each row shows a folder or file icon, the parent path, the increase, and the current size. The list sorts by growth, size, or kind.
 
 The right pane is the liquid graph of the focused folder: at most 60 children, plus one aggregate for the rest. **Area map** draws those same nodes as a squarified map. Liquid stays the default. A click selects. A double click opens a folder.
 

@@ -88,6 +88,7 @@ These decisions are part of the contract. The implementation detail lives in [AR
 - Insight, search, reclaim, duplicate, and growth results are never merged into tree pages or the hidden folder list.
 - The area map uses the existing graph payload. It does not raise `GRAPH_CHILD_CAP`.
 - The growth file is a compact snapshot, not a second copy of the tree, and it is not sent wholesale to the webview.
+- Growth rows show kind, parent, increase, and current size. The list sorts in the webview by growth, size, or kind.
 - Hidden files are scanned. `System Volume Information` and `$Recycle.Bin` are not. Directory junctions are recorded but not followed.
 - The filtered file list and the unfiltered tree use separate page caches.
 - Bloom post-processing is intentionally omitted so integrated GPUs can hold 60 FPS. Liquid glow comes from the shader.
