@@ -63,9 +63,32 @@ A Windows disk map. The scan stays in Rust. The window shows a size-sorted folde
 
 ## Install
 
+### Direct download
+
 Download the MSI or NSIS installer from [GitHub Releases](https://github.com/dipbd1/rust-disk-management/releases). Prefer a published release over a draft when both exist.
 
+- NSIS: `Liquid.Storage.Manager_<ver>_x64-setup.exe`
+- MSI: `Liquid.Storage.Manager_<ver>_x64_en-US.msi`
+
 There is no crates.io package and no CLI; this is a desktop app.
+
+### WinGet
+
+Once the package is accepted into the [Windows Package Manager Community Repository](https://github.com/microsoft/winget-pkgs):
+
+```powershell
+winget install dipbd1.LiquidStorageManager
+```
+
+Manifests live in [`packaging/winget/`](packaging/winget/). The first submission is manual; later published releases can open a `winget-pkgs` PR via Actions when the `WINGET_TOKEN` secret is set. See [`packaging/README.md`](packaging/README.md).
+
+### Scoop
+
+```powershell
+scoop install https://raw.githubusercontent.com/dipbd1/rust-disk-management/main/packaging/scoop/liquid-storage-manager.json
+```
+
+Or copy [`packaging/scoop/liquid-storage-manager.json`](packaging/scoop/liquid-storage-manager.json) into a custom Scoop bucket’s `bucket/` folder, then `scoop install liquid-storage-manager`. The manifest uses GitHub `checkver` and `autoupdate`.
 
 ### Admin / UAC
 
