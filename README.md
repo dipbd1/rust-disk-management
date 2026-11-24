@@ -6,6 +6,8 @@ A Windows disk map. The scan stays in Rust. The window shows a size-sorted folde
 
 **MSRV:** Rust 1.85 (edition 2024).
 
+**License:** [MIT](LICENSE) © 2026 Dip Chowdhury.
+
 ## Install
 
 Download the MSI or NSIS installer from [GitHub Releases](https://github.com/dipbd1/rust-disk-management/releases). Prefer a published release over a draft when both exist.

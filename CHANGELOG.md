@@ -15,8 +15,8 @@ First public Windows release candidate.
 - Backend never-delete guards on explorer trash and permanent delete (`\Windows\`, Program Files, drive roots)
 - Windows CI (fmt, clippy, tests, frontend build)
 - Draft GitHub Release workflow for MSI and NSIS installers on `v*` tags
+- MIT license
 
 ### Notes
 
 - Windows-only; not published to crates.io
-- License still TBD for the public tag

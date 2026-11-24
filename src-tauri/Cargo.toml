@@ -5,6 +5,7 @@ description = "Windows disk map with a Rust scan index and a liquid folder view 
 authors = ["Dip Chowdhury"]
 edition = "2024"
 rust-version = "1.85"
+license = "MIT"
 publish = false
 repository = "https://github.com/dipbd1/rust-disk-management"
 homepage = "https://github.com/dipbd1/rust-disk-management"
