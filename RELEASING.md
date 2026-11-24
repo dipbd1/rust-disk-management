@@ -8,9 +8,11 @@ The in-app updater reads:
 
 Draft releases are **not** served by `/releases/latest/`. Publish the release when users should receive the update.
 
-## One-time: generate the updater signing keypair
+## Updater signing keys
 
-Do this on your machine. **Never commit the private key.**
+The **public** key is already in `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`. **Never commit the private key.**
+
+If you ever need to regenerate a keypair (you will also have to replace that pubkey and re-ship so existing installs can verify future updates):
 
 ```bash
 # From the repo root (writes the private key to the path you choose):
@@ -20,10 +22,7 @@ npm run tauri signer generate -- -w ~/.tauri/liquid-storage-manager.key
 # cargo tauri signer generate -w ~/.tauri/liquid-storage-manager.key
 ```
 
-The CLI prints a **public key** and writes the **private key** (and asks for an optional password).
-
-1. Copy the public key string into `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`, replacing the placeholder `PASTE_PUBLIC_KEY_FROM_tauri_signer_generate`.
-2. Add these **repository secrets** (Settings → Secrets and variables → Actions):
+Add these **repository secrets** (Settings → Secrets and variables → Actions) if they are not set yet:
 
 | Secret | Value |
 | --- | --- |
