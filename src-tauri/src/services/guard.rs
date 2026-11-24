@@ -1,10 +1,12 @@
 use crate::services::paths::{is_drive_root, normalize_path};
 
-/// Reclaim may recycle the named Windows caches. Duplicate review may not.
+/// Reclaim may recycle the named Windows caches. Delete and duplicate review may not.
 #[derive(Clone, Copy)]
 pub enum GuardMode {
     Reclaim,
     Duplicates,
+    /// Explorer trash / permanent delete: same prefixes as duplicates, no cache exception.
+    Delete,
 }
 
 pub fn is_refused(path: &str, mode: GuardMode) -> bool {
@@ -23,7 +25,7 @@ pub fn is_refused(path: &str, mode: GuardMode) -> bool {
         return false;
     }
     match mode {
-        GuardMode::Duplicates => true,
+        GuardMode::Duplicates | GuardMode::Delete => true,
         GuardMode::Reclaim => !safe_windows_cache(&segs),
     }
 }
@@ -110,6 +112,11 @@ mod tests {
         assert!(is_refused(
             "C:\\Windows\\System32\\a.dll",
             GuardMode::Duplicates
+        ));
+        assert!(is_refused("C:\\Windows\\Temp\\a.tmp", GuardMode::Delete));
+        assert!(is_refused(
+            "C:\\Program Files\\App\\readme.txt",
+            GuardMode::Delete
         ));
     }
 }

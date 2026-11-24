@@ -11,6 +11,7 @@ use crate::models::{
     BinEmptyResult, DuplicateProgress, ExtensionRollup, GrowthDelta, InsightPage, LargestSort,
     RecycleBatch,
 };
+use crate::services::guard::GuardMode;
 use crate::services::{deletion, duplicates, insights, recycle_bin};
 use crate::state::AppState;
 
@@ -133,7 +134,7 @@ pub fn recycle_duplicate_copies(
     paths: Vec<String>,
 ) -> Result<RecycleBatch, AppError> {
     let paths = app_state.duplicate_copy_paths(&paths)?;
-    deletion::trash_many(&app_state, &paths)
+    deletion::trash_many(&app_state, &paths, GuardMode::Duplicates)
 }
 
 async fn run_duplicates(

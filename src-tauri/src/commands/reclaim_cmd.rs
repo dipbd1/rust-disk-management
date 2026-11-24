@@ -9,6 +9,7 @@ use tauri_remote_ui::EmitterExt;
 use crate::error::AppError;
 use crate::limits::PROGRESS_INTERVAL_MS;
 use crate::models::{ReclaimProgress, ReclaimReport, ReclaimScanResult, RecycleBatch};
+use crate::services::guard::GuardMode;
 use crate::services::{deletion, reclaim, recycle_bin};
 use crate::state::AppState;
 
@@ -61,7 +62,7 @@ pub async fn recycle_reclaim(
         Ok(result) => result?,
         Err(err) => return Err(AppError::Reclaim(format!("reclaim scan stopped: {err}"))),
     };
-    deletion::trash_many(&state, &paths)
+    deletion::trash_many(&state, &paths, GuardMode::Reclaim)
 }
 
 async fn run_reclaim(
