@@ -38,7 +38,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "PASTE_PUBLIC_KEY_FROM_tauri_signer_generate",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENEMkJGQzdCOTk5OUVBMTEKUldRUjZwbVplL3dyellFUWo1aHFIdTZjVWNuZXpHSVpyN0gxSU9TVmF3VEFMTnFFbHFwUHZvODAK",
       "endpoints": [
         "https://github.com/dipbd1/rust-disk-management/releases/latest/download/latest.json"
       ],
