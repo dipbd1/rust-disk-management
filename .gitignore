@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Written by the Release workflow when updater signing secrets are absent.
+src-tauri/ci-unsigned-updater.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

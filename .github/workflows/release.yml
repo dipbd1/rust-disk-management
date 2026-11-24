@@ -28,13 +28,31 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # createUpdaterArtifacts + pubkey require TAURI_SIGNING_PRIVATE_KEY.
+      # When the secret is missing, merge a config overlay so MSI/NSIS still build.
+      - name: Resolve tauri build args
+        id: tauri_args
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
+            echo "args=--bundles msi,nsis" >> "$GITHUB_OUTPUT"
+            echo "updater=signed" >> "$GITHUB_OUTPUT"
+          else
+            printf '%s\n' '{"bundle":{"createUpdaterArtifacts":false}}' > src-tauri/ci-unsigned-updater.json
+            echo "args=--bundles msi,nsis --config src-tauri/ci-unsigned-updater.json" >> "$GITHUB_OUTPUT"
+            echo "updater=unsigned" >> "$GITHUB_OUTPUT"
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY is unset; building installers without updater signatures or latest.json. See RELEASING.md."
+          fi
+
       - name: Build Windows installers (MSI + NSIS)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional Authenticode / updater signing — leave secrets unset to ship unsigned.
+          # Updater signing — required for .sig files and latest.json.
+          # Leave unset to ship unsigned installers without updater artifacts.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Optional Authenticode — leave unset to ship without code signing.
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
@@ -46,9 +64,13 @@ jobs:
 
             - MSI and NSIS packages (x64)
             - Windows-only; admin elevation optional for faster NTFS MFT scans
-            - See CHANGELOG.md and the README install notes
+            - Auto-update: when signing secrets are set, this release also gets `latest.json` and `.sig` files for the in-app updater
+            - See CHANGELOG.md, RELEASING.md, and the README install notes
 
             Draft release — review artifacts before publishing.
+            The in-app updater reads `releases/latest/download/latest.json`, so publish (do not leave draft-only) when users should receive the update.
           releaseDraft: true
           prerelease: false
-          args: --bundles msi,nsis
+          # uploadUpdaterJson / uploadUpdaterSignatures default to true; they are no-ops without .sig files.
+          updaterJsonPreferNsis: true
+          args: ${{ steps.tauri_args.outputs.args }}

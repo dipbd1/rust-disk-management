@@ -70,6 +70,8 @@ Download the MSI or NSIS installer from [GitHub Releases](https://github.com/dip
 - NSIS: `Liquid.Storage.Manager_<ver>_x64-setup.exe`
 - MSI: `Liquid.Storage.Manager_<ver>_x64_en-US.msi`
 
+Installed builds can check for updates from the latest published release (About → Check for updates, or the startup prompt). Signing setup and release steps are in [RELEASING.md](RELEASING.md).
+
 There is no crates.io package and no CLI; this is a desktop app.
 
 ### WinGet
@@ -106,7 +108,7 @@ Cancel keeps the partial index. Rescan starts again from the active drive or fol
 
 ## What the panes do
 
-The left pane tabs are Explorer, Largest, Search, Types, Reclaim, Duplicates, and Growth.
+The left pane tabs are Explorer, Largest, Search, Types, Reclaim, Duplicates, Growth, and Deleted.
 
 - **Largest** pages files by size. Choosing one selects it and focuses its parent in the graph.
 - **Search** matches names anywhere in the scan. Those results are not the tree.
@@ -153,6 +155,6 @@ cargo test --manifest-path src-tauri/Cargo.toml
 npx tsc --noEmit
 ```
 
-The identifier stays `com.anarchy.disk-space-management`, so existing app data paths stay put. Optional code signing uses repository secrets on the Release workflow; unsigned installers still build when those secrets are absent. A store listing is outside this repo.
+The identifier stays `com.anarchy.disk-space-management`, so existing app data paths stay put. Optional Authenticode and updater signing use repository secrets on the Release workflow; unsigned installers still build when those secrets are absent (updater artifacts are skipped). A store listing is outside this repo.
 
-See [CHANGELOG.md](CHANGELOG.md) for the v0.1.0 notes.
+See [CHANGELOG.md](CHANGELOG.md) for the v0.1.0 notes and [RELEASING.md](RELEASING.md) to cut a signed update release.

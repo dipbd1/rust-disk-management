@@ -23,9 +23,15 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_remote_ui::init())
         .manage(Arc::new(AppState::new()))
-        .setup(open_main_window)
+        .setup(|app| {
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+            open_main_window(app)
+        })
         .invoke_handler(tauri::generate_handler![
             commands::scan_cmd::list_drives,
             commands::scan_cmd::start_scan,

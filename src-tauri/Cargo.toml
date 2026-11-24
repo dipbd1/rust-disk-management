@@ -47,7 +47,7 @@ sysinfo = { version = "0.40.1", default-features = false, features = ["disk"] }
 tauri-remote-ui = "1.1.2"
 tauri-plugin-dialog = "2"
 sha2 = "0.10"
-
+tauri-plugin-process = "2"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
@@ -56,3 +56,6 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-updater = "2"
