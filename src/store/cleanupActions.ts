@@ -122,6 +122,7 @@ function applyBatch(set: SetFile, batch: RecycleBatch, outcome?: string): void {
       extensions: null,
       extensionPage: null,
       reclaim: null,
+      deletionLog: null,
       toast: outcome ?? `Moved to the Recycle Bin · ${formatBytes(batch.freedBytes)} freed`,
     };
   });

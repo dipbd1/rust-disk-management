@@ -18,7 +18,7 @@ export function CanvasHud() {
   const focusedNodeId = useFileStore((state) => state.focusedNodeId);
   const activeDrive = useFileStore((state) => state.activeDrive);
   const scanStatus = useFileStore((state) => state.scanStatus);
-  const confirmPath = useFileStore((state) => state.confirmPath);
+  const permanentPrompt = useFileStore((state) => state.permanentPrompt);
   const focusNode = useFileStore((state) => state.focusNode);
 
   const categoryFilter = useVisualizerStore((state) => state.categoryFilter);
@@ -76,7 +76,7 @@ export function CanvasHud() {
   const hubLabel = graphView?.focus.name || activeDrive || "C:";
 
   useEffect(() => {
-    if (!canGoUp || !parentCrumb || confirmPath) return;
+    if (!canGoUp || !parentCrumb || permanentPrompt) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -91,7 +91,7 @@ export function CanvasHud() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canGoUp, parentCrumb, confirmPath, focusNode, triggerTreeReveal]);
+  }, [canGoUp, parentCrumb, permanentPrompt, focusNode, triggerTreeReveal]);
 
   return (
     <>

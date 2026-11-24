@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { SEARCH_SECTION } from "../../lib/features";
 import { reclaimHasContent } from "../../lib/reclaimView";
+import { DeletedPanel } from "../explorer/DeletedPanel";
 import { DuplicatePanel } from "../explorer/DuplicatePanel";
 import { GrowthPanel } from "../explorer/GrowthPanel";
 import { PaneTabs } from "../explorer/PaneTabs";
@@ -100,6 +101,7 @@ export function SplitWorkspace() {
             {leftTab === "reclaim" ? <ReclaimPanel /> : null}
             {leftTab === "duplicates" ? <DuplicatePanel /> : null}
             {leftTab === "growth" ? <GrowthPanel /> : null}
+            {leftTab === "deleted" ? <DeletedPanel /> : null}
           </div>
         </div>
         {inspectorCollapsed ? null : (

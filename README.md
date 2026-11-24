@@ -92,9 +92,18 @@ The left pane tabs are Explorer, Largest, Search, Types, Reclaim, Duplicates, an
 
 The right pane is the liquid graph of the focused folder: at most 60 children, plus one aggregate for the rest. **Area map** draws those same nodes as a squarified map. Liquid stays the default. A click selects. A double click opens a folder.
 
+## Safety
+
+Deletes are meant to feel reversible for early use:
+
+- **Recycle Bin by default.** Delete, Trash, and cleanup actions move items to the Recycle Bin. Permanent delete is opt-in (Shift+Delete or the context-menu item) and needs an extra acknowledgment.
+- **Preview before delete.** Confirms list the items, the count, the total size, and whether they go to the Recycle Bin or are removed for good.
+- **Protected paths.** Drive roots, `\Windows\`, `\Program Files\`, and `\Program Files (x86)\` are refused by the backend even if a confirm is skipped.
+- **Recent deletions.** The Deleted tab logs what this app removed and offers Restore when the Recycle Bin still has the item, or Open Recycle Bin otherwise.
+
 ## Cleanup rules
 
-Delete asks, then moves the selection to the Recycle Bin and reports the freed bytes. Shift+Delete asks before permanent delete. Drive roots, `\Windows\`, `\Program Files\`, and `\Program Files (x86)\` cannot be deleted from the explorer (the backend refuses them even if a confirm is skipped). Clicking the drive that is already the scan root returns to that root and does not start another walk.
+Delete asks with that preview, then moves the selection to the Recycle Bin and reports the freed bytes. Shift+Delete asks before permanent delete. Clicking the drive that is already the scan root returns to that root and does not start another walk.
 
 **Reclaim** lists only catalog matches, each with a sentence:
 

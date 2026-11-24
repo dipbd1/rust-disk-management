@@ -11,3 +11,4 @@ export const DUPLICATE_GROUP_CAP = 100;
 export const GROWTH_FILE_CAP = 200;
 export const RECLAIM_DOWNLOAD_MIN_BYTES = 100 * 1024 * 1024;
 export const RECLAIM_DOWNLOAD_AGE_DAYS = 30;
+export const DELETION_LOG_CAP = 200;

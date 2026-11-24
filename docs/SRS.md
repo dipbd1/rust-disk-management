@@ -40,6 +40,8 @@ A high-performance desktop storage analyzer and file management utility for Wind
 #### FR-5: Safe File Operations & State Sync
 - **FR-5.1:** Deleting a file/folder via "Move to Recycle Bin" shall invoke the native Windows Recycle Bin API (`trash` crate).
 - **FR-5.2:** Upon successful deletion, the backend shall return the freed byte count, and the frontend shall subtract that size up the ancestor tree in O(depth) time without requiring a full disk re-scan.
+- **FR-5.3:** Before any user-initiated delete, the UI shall show a preview confirm listing the items (scrollable), total count, total size, and destination (Recycle Bin vs permanent).
+- **FR-5.4:** Successful deletes append a JSONL entry (timestamp, path, size, method) under the app data directory. The Deleted tab shows recent entries and offers Restore when a Recycle Bin match is found, otherwise Open Recycle Bin.
 
 #### FR-6: Find the space
 - **FR-6.1:** Largest files are a page from `ScanIndex` (default 400, clamp 1000). The default order is size descending. Name order is alphabetical, with larger files first when names tie. Folder order groups by parent path, then largest file in that folder. Each order can run in the other direction, and the order is applied to the full scan before paging. Choosing a row selects that file and focuses its parent in the graph. Opening the Largest tab does not load this list. A Scan button at the top of the section starts or restarts the active drive, or the first fixed drive when none is active. After that scan is ready, or once entries are listed, the bar shows Re-scan, Size, Name, and Folder. Re-scan starts the drive again.
@@ -70,7 +72,7 @@ A high-performance desktop storage analyzer and file management utility for Wind
 - **FR-10.2:** A click selects a tile, including the aggregate. A double click on a folder focuses it, the same as a liquid ball. Layout runs when the graph payload or the pane size changes, not inside `useFrame`. `GRAPH_CHILD_CAP` stays 60.
 
 #### FR-11: Delete means the Recycle Bin
-- **FR-11.1:** Delete asks, then moves the selection to the Recycle Bin and toasts the freed bytes. A node in the current graph drains after that confirm. Shift+Delete keeps the permanent-delete confirm. Drive roots, `\Windows\`, `\Program Files\`, and `\Program Files (x86)\` cannot be deleted through explorer trash or permanent delete (backend refuses even if the UI confirm is bypassed).
+- **FR-11.1:** Delete asks with a preview (items, count, size, Recycle Bin destination), then moves the selection to the Recycle Bin and toasts the freed bytes. A node in the current graph drains after that confirm. Shift+Delete keeps a stronger permanent-delete confirm (explicit acknowledgment). Drive roots, `\Windows\`, `\Program Files\`, and `\Program Files (x86)\` cannot be deleted through explorer trash or permanent delete (backend refuses even if the UI confirm is bypassed).
 
 ### 3. Non-Functional Requirements (NFR)
 - **NFR-1 (Frame Rate):** The 3D viewport and 2D UI must maintain 60 FPS during idle, camera orbit, and tree scrolling on modern integrated or discrete GPUs.

@@ -48,6 +48,7 @@ pub fn cancel_reclaim(app_state: State<'_, Arc<AppState>>) -> Result<(), AppErro
 
 #[tauri::command]
 pub async fn recycle_reclaim(
+    app: AppHandle,
     app_state: State<'_, Arc<AppState>>,
     ids: Vec<String>,
 ) -> Result<RecycleBatch, AppError> {
@@ -62,7 +63,8 @@ pub async fn recycle_reclaim(
         Ok(result) => result?,
         Err(err) => return Err(AppError::Reclaim(format!("reclaim scan stopped: {err}"))),
     };
-    deletion::trash_many(&state, &paths, GuardMode::Reclaim)
+    let log_dir = app.path().app_data_dir().ok();
+    deletion::trash_many(&state, &paths, GuardMode::Reclaim, log_dir.as_deref())
 }
 
 async fn run_reclaim(

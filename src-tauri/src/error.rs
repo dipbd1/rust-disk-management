@@ -32,6 +32,10 @@ pub enum AppError {
     Duplicates(String),
     #[error("growth snapshot failed: {0}")]
     History(String),
+    #[error("deletion log failed: {0}")]
+    DeletionLog(String),
+    #[error("restore failed: {0}")]
+    Restore(String),
 }
 
 impl serde::Serialize for AppError {

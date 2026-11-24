@@ -1,22 +1,30 @@
+use std::path::Path;
+
 use crate::error::AppError;
-use crate::models::{DeleteResult, RecycleBatch};
+use crate::models::{DeleteResult, DeletionMethod, RecycleBatch};
+use crate::services::deletion_log;
 use crate::services::guard::{self, GuardMode};
 use crate::services::paths::{is_drive_root, is_reparse_point, normalize_path};
 use crate::state::AppState;
 
-pub fn trash_indexed(state: &AppState, path: &str) -> Result<DeleteResult, AppError> {
-    trash_indexed_with(state, path, GuardMode::Delete)
+pub fn trash_indexed(
+    state: &AppState,
+    path: &str,
+    log_dir: Option<&Path>,
+) -> Result<DeleteResult, AppError> {
+    trash_indexed_with(state, path, GuardMode::Delete, log_dir)
 }
 
 pub fn trash_many(
     state: &AppState,
     paths: &[String],
     mode: GuardMode,
+    log_dir: Option<&Path>,
 ) -> Result<RecycleBatch, AppError> {
     let mut results = Vec::new();
     let mut freed_bytes = 0u64;
     for path in paths {
-        let result = trash_indexed_with(state, path, mode)?;
+        let result = trash_indexed_with(state, path, mode, log_dir)?;
         freed_bytes = freed_bytes.saturating_add(result.freed_bytes);
         results.push(result);
     }
@@ -26,22 +34,41 @@ pub fn trash_many(
     })
 }
 
-pub fn permanent_delete(state: &AppState, path: &str) -> Result<DeleteResult, AppError> {
+pub fn permanent_delete(
+    state: &AppState,
+    path: &str,
+    log_dir: Option<&Path>,
+) -> Result<DeleteResult, AppError> {
     let path = deletable_path(path, GuardMode::Delete)?;
     let fallback = existing_file_len(&path).map_err(|err| AppError::Delete(err.to_string()))?;
     erase_path(&path)?;
-    patch_index(state, &path, fallback)
+    let result = patch_index(state, &path, fallback)?;
+    note_log(
+        log_dir,
+        &result.removed_path,
+        result.freed_bytes,
+        DeletionMethod::Permanent,
+    );
+    Ok(result)
 }
 
 fn trash_indexed_with(
     state: &AppState,
     path: &str,
     mode: GuardMode,
+    log_dir: Option<&Path>,
 ) -> Result<DeleteResult, AppError> {
     let path = deletable_path(path, mode)?;
     let fallback = existing_file_len(&path).map_err(|err| AppError::Trash(err.to_string()))?;
     trash::delete(&path).map_err(|err| AppError::Trash(err.to_string()))?;
-    patch_index(state, &path, fallback)
+    let result = patch_index(state, &path, fallback)?;
+    note_log(
+        log_dir,
+        &result.removed_path,
+        result.freed_bytes,
+        DeletionMethod::RecycleBin,
+    );
+    Ok(result)
 }
 
 /// Backend path policy for any delete, independent of UI confirms.
@@ -57,6 +84,14 @@ pub fn deletable_path(path: &str, mode: GuardMode) -> Result<String, AppError> {
         return Err(AppError::Protected(path));
     }
     Ok(path)
+}
+
+fn note_log(dir: Option<&Path>, path: &str, size_bytes: u64, method: DeletionMethod) {
+    let Some(dir) = dir else {
+        return;
+    };
+    // Logging must not undo a successful delete.
+    let _ = deletion_log::append(dir, path, size_bytes, method);
 }
 
 fn existing_file_len(path: &str) -> Result<u64, std::io::Error> {

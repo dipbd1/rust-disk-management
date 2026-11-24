@@ -64,7 +64,14 @@ export function DuplicatePanel() {
                             kind: "duplicates",
                             paths: group.copies.map((copy) => copy.path),
                             title: "Recycle the extra copies?",
-                            body: `Move ${group.copies.length.toLocaleString()} copies (${formatBytes(group.wastedBytes)}) to the Recycle Bin. The keeper stays: ${group.keeper.path}`,
+                            items: group.copies.map((copy) => ({
+                              path: copy.path,
+                              name: copy.name,
+                              sizeBytes: copy.sizeBytes,
+                            })),
+                            totalCount: group.copies.length,
+                            totalBytes: group.wastedBytes,
+                            note: `The keeper stays: ${group.keeper.path}`,
                           })
                         }
                       >

@@ -29,6 +29,7 @@ The webview never receives the whole recursive tree. It receives:
 - reclaim rows (catalog matches only) and the Recycle Bin size
 - duplicate groups (at most 100) after an opt-in review
 - a growth delta list for the current root
+- a capped recent deletion-log page (not the tree)
 
 ## Constants (keep these in sync)
 
@@ -49,6 +50,7 @@ The webview never receives the whole recursive tree. It receives:
 | Growth files | `limits::GROWTH_FILE_CAP` | `GROWTH_FILE_CAP` | 200 |
 | Old download | `limits::RECLAIM_DOWNLOAD_MIN_BYTES` | `RECLAIM_DOWNLOAD_MIN_BYTES` | 100 MiB |
 | Download age | `limits::RECLAIM_DOWNLOAD_AGE_DAYS` | `RECLAIM_DOWNLOAD_AGE_DAYS` | 30 days |
+| Deletion log | `limits::DELETION_LOG_CAP` | `DELETION_LOG_CAP` | 200 |
 | Sphere radius | n/a | `scale.ts` | 0.4 – 3.5 |
 
 Rust is authoritative for paging and the graph cap. Do not re-implement the cap only in the UI.
@@ -63,7 +65,7 @@ Rust is authoritative for paging and the graph cap. Do not re-implement the cap 
 - On launch, a non-elevated process with a fixed NTFS drive asks whether to restart as administrator. Continue starts the folder walk. The choice can be remembered. The top bar keeps a Faster scan action. `npm run dev:admin` runs `tauri dev` elevated, so Cargo owns the process. Stop any other dev session first; both need port 1420. The in-app restart does the same handoff and then exits. A release build starts the installed exe and exits. Normal and elevated runs use different WebView2 directories under the app local data dir: `webview-user` or `webview-admin`.
 - Progress streaming uses a callback in the scanner. The command adapts that callback to `tauri::ipc::Channel`. Tests do not need a Tauri runtime.
 - On cancel, the partial index is kept so the user can browse what was already found.
-- `trash_path` uses the `trash` crate. `permanent_delete` is the only caller of `remove_file` / `remove_dir_all`. Both run `deletable_path` with `GuardMode::Delete` (drive roots, `\Windows\`, `\Program Files\`, `\Program Files (x86)\`) before touching disk, independent of UI confirms. Reclaim and duplicate recycle call `trash_many` with `GuardMode::Reclaim` or `GuardMode::Duplicates` so named Windows caches stay reclaim-only. Both then call `ScanIndex::remove_path`, which subtracts `freedBytes` up the ancestor chain and returns those nodes.
+- `trash_path` uses the `trash` crate. `permanent_delete` is the only caller of `remove_file` / `remove_dir_all`. Both run `deletable_path` with `GuardMode::Delete` (drive roots, `\Windows\`, `\Program Files\`, `\Program Files (x86)\`) before touching disk, independent of UI confirms. Reclaim and duplicate recycle call `trash_many` with `GuardMode::Reclaim` or `GuardMode::Duplicates` so named Windows caches stay reclaim-only. Both then call `ScanIndex::remove_path`, which subtracts `freedBytes` up the ancestor chain and returns those nodes. Successful deletes append to `deletion-log.jsonl` in `app_data_dir` (capped read of 200 newest rows). `restore_deleted` best-effort matches a Recycle Bin `$I*` info file and renames the `$R*` content back; if that fails, the UI opens the Recycle Bin via `shell:RecycleBinFolder`. Delete confirms are structured previews (items, count, bytes, destination), not free-text only.
 - The watcher is non-recursive on the focused folder, or the parent folder when a file is focused, debounced, and emits `fs-stale`. It does not rescan. The UI shows a rescan action. Rescan always restarts from the active drive so ancestor totals stay honest.
 - Commands return `Result<T, AppError>`. `AppError` serializes as a string. No `.unwrap()` or `.expect()` in commands or services. `Builder::run` in `lib.rs` is the one allowed startup `.expect()`.
 - Insight queries live in `services/insights/`. The insight cache (size-descending file ids, one alternate largest-files order, the extension rollup, and the last search hit list) sits beside the session, keyed by the index revision. Largest files can be ordered by size, name, or parent folder. Search and extension files stay size-descending. It is not the tree and it is not merged into `childPages` or `list`.
@@ -78,7 +80,7 @@ Rust is authoritative for paging and the graph cap. Do not re-implement the cap 
 ## Frontend patterns
 
 - Zustand (`useFileStore`) is the only shared state. Components do not call `invoke`.
-- Tree pages (`childPages`, source `preview` or `index`) and the filtered folder list (`list`) are separate. A search must not replace the tree cache. The folder list is not rendered; `list` and `refreshList` stay so filtered results never mix into tree pages. Whole-scan search, largest files, extension files, reclaim, duplicates, and growth use their own store fields. Search results stay in `searchPage`. `SEARCH_SECTION` in `src/lib/features.ts` only controls whether the left-pane Search tab and panel render. An expanded folder draws its file rows from that same child page. Files are leaves.
+- Tree pages (`childPages`, source `preview` or `index`) and the filtered folder list (`list`) are separate. A search must not replace the tree cache. The folder list is not rendered; `list` and `refreshList` stay so filtered results never mix into tree pages. Whole-scan search, largest files, extension files, reclaim, duplicates, growth, and the deletion log use their own store fields. Search results stay in `searchPage`. `SEARCH_SECTION` in `src/lib/features.ts` only controls whether the left-pane Search tab and panel render. An expanded folder draws its file rows from that same child page. Files are leaves.
 - The area map reads `graphView` only. A click selects a tile. A double click on a folder focuses it. Squarify runs when that payload or the pane size changes. `useFrame` is not involved. The liquid surface stays the default. `GRAPH_CHILD_CAP` stays 60. Focusing a folder pages ancestors from the scan root downward. A folder scan's index does not contain the drive above that root, so the walk does not request `C:\`.
 - The selection details panel is a 2D layout widget (`components/layout/ViewerInspector.tsx`) docked under the folder tree by `SplitWorkspace`. It is not an overlay on the graph. `SplitWorkspace` owns the panel height ratio and collapsed flag. The graph surface is the canvas and HUD only. The column eases to about 64% of the width and the details inspector collapses only while a reclaim report has content (a row with bytes, or a known Recycle Bin size above zero). An empty, waiting, or zero result keeps the split the user set. The liquid graph stays in the remaining width. Choosing a reclaim row focuses that folder in the graph. Other tabs keep that split and restore the inspector.
 - While `scanStatus` is `scanning`, the canvas reads `progress` inside the animation frame and draws the root, at most 16 direct children, and the capped moons beside the largest folders. It does not write `graphView` on each tick. Each level-1 path keeps the slot angle it got the first time it appeared, including after the scan finishes. Publishing `graphView` for the hub already on screen does not replay the drill-in. A new moon eases out from its parent. The radar sweep, scanning label, and path ticker fade out over about 700ms. A click during the scan selects the ball and does not drill in, because the index is published when the scan finishes. Any ball click during the scan toasts “Scanning in progress. Please wait.” at the top center of the window.
@@ -96,6 +98,7 @@ Rust is authoritative for paging and the graph cap. Do not re-implement the cap 
 | --- | --- |
 | New IPC | `commands/` wrapper, `services/` logic, `tauriBridge.ts`, `types/filesystem.ts`, register in `lib.rs` |
 | Insight, reclaim, duplicate, growth IPC | `commands/insights_cmd.rs`, `commands/reclaim_cmd.rs`, `services/insights/`, `services/reclaim/`, `services/duplicates/`, `services/history.rs` |
+| Deletion log / restore | `commands/fs_ops_cmd.rs`, `services/deletion_log.rs`, `services/restore.rs`, Deleted tab |
 | New filesystem behavior | `services/`, then a store action |
 | New 2D widget | `components/explorer/` or `components/layout/` |
 | New 3D object | `components/visualizer/` and, if it shades, `shaders/` |

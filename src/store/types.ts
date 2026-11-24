@@ -1,4 +1,6 @@
 import type {
+  DeletePreviewItem,
+  DeletionLogEntry,
   DriveInfo,
   DuplicateProgress,
   ExtensionRollup,
@@ -13,7 +15,15 @@ import type {
   ScanProgress,
 } from "../types/filesystem";
 
-export type LeftTab = "explorer" | "largest" | "search" | "types" | "reclaim" | "duplicates" | "growth";
+export type LeftTab =
+  | "explorer"
+  | "largest"
+  | "search"
+  | "types"
+  | "reclaim"
+  | "duplicates"
+  | "growth"
+  | "deleted";
 
 export interface ExtensionTarget {
   extension: string;
@@ -24,11 +34,21 @@ export interface DuplicateRun extends DuplicateProgress {
   running: boolean;
 }
 
+type PreviewFields = {
+  title: string;
+  items: DeletePreviewItem[];
+  totalCount: number;
+  totalBytes: number;
+  note?: string;
+};
+
 export type RecyclePrompt =
-  | { kind: "reclaim"; ids: string[]; title: string; body: string; outcome?: string }
-  | { kind: "bin"; title: string; body: string; outcome?: string }
-  | { kind: "duplicates"; paths: string[]; title: string; body: string }
-  | { kind: "path"; path: string; title: string; body: string };
+  | (PreviewFields & { kind: "reclaim"; ids: string[]; outcome?: string })
+  | (PreviewFields & { kind: "bin"; outcome?: string })
+  | (PreviewFields & { kind: "duplicates"; paths: string[] })
+  | (PreviewFields & { kind: "path"; path: string });
+
+export type PermanentPrompt = PreviewFields & { path: string };
 
 export type ScanStatus = "idle" | "scanning" | "ready" | "cancelled" | "error";
 
@@ -67,7 +87,7 @@ export interface FileData {
   stale: boolean;
   stalePath: string | null;
   toast: string | null;
-  confirmPath: string | null;
+  permanentPrompt: PermanentPrompt | null;
   drainingId: string | null;
   elevated: boolean;
   elevationPrompt: boolean;
@@ -84,6 +104,7 @@ export interface FileData {
   duplicateRun: DuplicateRun | null;
   growth: GrowthDelta | null;
   recyclePrompt: RecyclePrompt | null;
+  deletionLog: DeletionLogEntry[] | null;
 }
 
 export interface FileActions {
@@ -104,6 +125,9 @@ export interface FileActions {
   requestPermanentDelete: (path: string) => void;
   confirmPermanentDelete: () => Promise<void>;
   dismissConfirm: () => void;
+  loadDeletionLog: () => Promise<void>;
+  restoreDeletion: (path: string) => Promise<void>;
+  openRecycleBinFolder: () => Promise<void>;
   dismissToast: () => void;
   continueWithoutElevation: (remember: boolean) => Promise<void>;
   restartElevated: () => Promise<void>;
@@ -147,7 +171,7 @@ export const initialData: FileData = {
   stale: false,
   stalePath: null,
   toast: null,
-  confirmPath: null,
+  permanentPrompt: null,
   drainingId: null,
   elevated: false,
   elevationPrompt: false,
@@ -164,4 +188,5 @@ export const initialData: FileData = {
   duplicateRun: null,
   growth: null,
   recyclePrompt: null,
+  deletionLog: null,
 };

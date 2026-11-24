@@ -8,6 +8,7 @@ import {
   requestTrash,
   reveal,
 } from "./deleteActions";
+import { loadDeletionLog, openRecycleBinFolder, restoreDeletion } from "./deletionLogActions";
 import { focusNode, loadMoreList, loadMoreTree, setQuery, toggleExpanded } from "./navActions";
 import {
   cancelDuplicates,
@@ -58,7 +59,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
   finishDrain: (path) => finishDrain(set, get, path),
   requestPermanentDelete: (path) => requestPermanentDelete(set, get, path),
   confirmPermanentDelete: () => confirmPermanentDelete(set, get),
-  dismissConfirm: () => set({ confirmPath: null }),
+  dismissConfirm: () => set({ permanentPrompt: null }),
+  loadDeletionLog: () => loadDeletionLog(set),
+  restoreDeletion: (path) => restoreDeletion(set, path),
+  openRecycleBinFolder: () => openRecycleBinFolder(set),
   dismissToast: () => set({ toast: null }),
   continueWithoutElevation: (remember) => continueWithoutElevation(set, get, remember),
   restartElevated: () => restartElevated(set, get),
