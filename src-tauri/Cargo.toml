@@ -1,9 +1,16 @@
 [package]
 name = "disk-space-management"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Windows disk map with a Rust scan index and a liquid folder view (Liquid Storage Manager)"
+authors = ["Dip Chowdhury"]
 edition = "2024"
+rust-version = "1.85"
+publish = false
+repository = "https://github.com/dipbd1/rust-disk-management"
+homepage = "https://github.com/dipbd1/rust-disk-management"
+readme = "../README.md"
+keywords = ["disk", "storage", "windows", "tauri", "filesystem"]
+categories = ["gui", "filesystem"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
