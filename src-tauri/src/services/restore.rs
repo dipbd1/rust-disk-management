@@ -138,7 +138,7 @@ fn paths_equal(a: &str, b: &str) -> bool {
 }
 
 fn decode_utf16le(bytes: &[u8]) -> Option<String> {
-    if !bytes.len().is_multiple_of(2) {
+    if bytes.len() % 2 != 0 {
         return None;
     }
     let units: Vec<u16> = bytes
@@ -150,7 +150,7 @@ fn decode_utf16le(bytes: &[u8]) -> Option<String> {
 }
 
 fn decode_utf16le_z(bytes: &[u8]) -> Option<String> {
-    if !bytes.len().is_multiple_of(2) {
+    if bytes.len() % 2 != 0 {
         return None;
     }
     let mut units = Vec::new();
