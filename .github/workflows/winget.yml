@@ -1,0 +1,54 @@
+# Submits updated manifests to microsoft/winget-pkgs after a GitHub Release is published.
+# Requires repository secret WINGET_TOKEN (classic PAT). See packaging/README.md.
+#
+# First package version must be submitted manually; winget-releaser only updates
+# an identifier that already exists in winget-pkgs.
+name: Publish to WinGet
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to submit (e.g. v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  winget:
+    name: Submit to winget-pkgs
+    runs-on: ubuntu-latest
+    env:
+      # Secrets cannot be used in job-level `if:`; lift into env and gate steps.
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Skip when WINGET_TOKEN is unset
+        if: env.WINGET_TOKEN == ''
+        run: |
+          {
+            echo "## WinGet submission skipped"
+            echo ""
+            echo "WINGET_TOKEN is not set, so no pull request was opened against microsoft/winget-pkgs."
+            echo ""
+            echo "To enable automatic updates after the first manual submission:"
+            echo "1. Fork microsoft/winget-pkgs under the account that will own the token."
+            echo "2. Create a classic PAT with public_repo (and preferably workflow)."
+            echo "3. Store it as the repository secret WINGET_TOKEN."
+            echo ""
+            echo "Details: packaging/README.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish to WinGet
+        if: env.WINGET_TOKEN != ''
+        uses: vedantmgoyal9/winget-releaser@b7370d4d152efdce803a26cc6ca9eee58cb2ad54 # v2
+        with:
+          identifier: dipbd1.LiquidStorageManager
+          # PackageVersion is derived from release-tag with a leading "v" stripped.
+          installers-regex: '\.(exe|msi)$'
+          release-tag: ${{ env.RELEASE_TAG }}
+          token: ${{ env.WINGET_TOKEN }}
