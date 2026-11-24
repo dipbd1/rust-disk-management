@@ -13,8 +13,9 @@ First public Windows release candidate.
 - Reclaim, duplicates, largest files, types, search, and growth panels
 - Recycle Bin deletes by default; permanent delete behind a confirm
 - Backend never-delete guards on explorer trash and permanent delete (`\Windows\`, Program Files, drive roots)
+- In-app auto-updater (`tauri-plugin-updater` + process relaunch): startup check, dismissible prompt, About → Check for updates
 - Windows CI (fmt, clippy, tests, frontend build)
-- Draft GitHub Release workflow for MSI and NSIS installers on `v*` tags
+- Draft GitHub Release workflow for MSI and NSIS installers on `v*` tags (signed updater artifacts and `latest.json` when signing secrets are set)
 - MIT license
 
 ### Notes

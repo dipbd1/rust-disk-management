@@ -72,6 +72,11 @@ A high-performance desktop storage analyzer and file management utility for Wind
 #### FR-11: Delete means the Recycle Bin
 - **FR-11.1:** Delete asks, then moves the selection to the Recycle Bin and toasts the freed bytes. A node in the current graph drains after that confirm. Shift+Delete keeps the permanent-delete confirm. Drive roots, `\Windows\`, `\Program Files\`, and `\Program Files (x86)\` cannot be deleted through explorer trash or permanent delete (backend refuses even if the UI confirm is bypassed).
 
+#### FR-12: In-app updates
+- **FR-12.1:** On desktop startup the app shall check for updates in the background against the configured GitHub Releases `latest.json` endpoint. A check failure (offline, unsigned build, draft-only release) stays silent.
+- **FR-12.2:** When a newer version is available, the UI shall show a dismissible prompt: update available with the version, plus Install and restart.
+- **FR-12.3:** About shall expose a manual Check for updates action with the same install path.
+
 ### 3. Non-Functional Requirements (NFR)
 - **NFR-1 (Frame Rate):** The 3D viewport and 2D UI must maintain 60 FPS during idle, camera orbit, and tree scrolling on modern integrated or discrete GPUs.
 - **NFR-2 (Memory Footprint):** Frontend WebView memory usage must remain under 400 MB even when indexing 500,000 files; full deeply nested file lists should reside in Rust memory and only query active/expanded branches into JS when needed, or use flat indexed typed arrays.

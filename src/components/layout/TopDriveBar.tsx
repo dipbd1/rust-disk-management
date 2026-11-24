@@ -6,7 +6,7 @@ function driveRootKey(path: string): string {
   return path.replace(/\\+$/, "").toLowerCase();
 }
 
-export function TopDriveBar() {
+export function TopDriveBar({ onOpenAbout }: { onOpenAbout: () => void }) {
   const drives = useFileStore((state) => state.drives);
   const activeDrive = useFileStore((state) => state.activeDrive);
   const scanDrive = useFileStore((state) => state.scanDrive);
@@ -90,6 +90,14 @@ export function TopDriveBar() {
           Faster scan
         </button>
       ) : null}
+      <button
+        type="button"
+        className="h-8 shrink-0 rounded-md border border-white/10 px-2.5 text-xs hover:bg-white/5"
+        onClick={onOpenAbout}
+        title="About and updates"
+      >
+        About
+      </button>
     </header>
   );
 }

@@ -1,10 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ConfirmDelete } from "./components/explorer/ConfirmDelete";
 import { RecycleConfirm } from "./components/explorer/RecycleConfirm";
 import { Toast } from "./components/explorer/Toast";
+import { AboutDialog } from "./components/layout/AboutDialog";
 import { ElevationPrompt } from "./components/layout/ElevationPrompt";
 import { SplitWorkspace } from "./components/layout/SplitWorkspace";
 import { TopDriveBar } from "./components/layout/TopDriveBar";
+import { UpdatePrompt } from "./components/layout/UpdatePrompt";
 import { useFileStore } from "./store/useFileStore";
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -14,6 +16,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export default function App() {
   const boot = useFileStore((state) => state.boot);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   useEffect(() => {
     void boot();
@@ -34,9 +37,11 @@ export default function App() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#0B0F17] text-slate-100">
-      <TopDriveBar />
+      <TopDriveBar onOpenAbout={() => setAboutOpen(true)} />
       <SplitWorkspace />
       <ElevationPrompt />
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <UpdatePrompt />
       <ConfirmDelete />
       <RecycleConfirm />
       <Toast />

@@ -1,4 +1,7 @@
+import { getVersion as tauriGetVersion } from "@tauri-apps/api/app";
 import { Channel } from "@tauri-apps/api/core";
+import { relaunch as tauriRelaunch } from "@tauri-apps/plugin-process";
+import { check as tauriCheckUpdate } from "@tauri-apps/plugin-updater";
 import { invoke } from "tauri-remote-ui/api/core";
 import { listen } from "tauri-remote-ui/api/event";
 import type {
@@ -20,13 +23,40 @@ import type {
   ScanProgress,
 } from "../types/filesystem";
 
-/** The only module that imports Tauri IPC. `Channel` stays on `@tauri-apps/api`; `invoke` and `listen` use the remote-ui shim so a browser can reach the running app. */
+/** Available update from the configured GitHub Releases endpoint, or null when none / not in the desktop webview. */
+export interface AppUpdateInfo {
+  version: string;
+  body: string | null;
+  installAndRelaunch: () => Promise<void>;
+}
+
+/** The only module that imports Tauri IPC. `Channel` stays on `@tauri-apps/api`; `invoke` and `listen` use the remote-ui shim so a browser can reach the running app. Updater and process plugins stay here too. */
 export function listDrives(): Promise<DriveInfo[]> {
   return invoke<DriveInfo[]>("list_drives");
 }
 
 function inDesktopWebview(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+export async function appVersion(): Promise<string> {
+  if (!inDesktopWebview()) return "0.0.0-browser";
+  return tauriGetVersion();
+}
+
+/** Non-blocking check against `plugins.updater.endpoints`. Returns null when up to date, offline, or not in the desktop shell. */
+export async function checkForAppUpdate(): Promise<AppUpdateInfo | null> {
+  if (!inDesktopWebview()) return null;
+  const update = await tauriCheckUpdate();
+  if (!update) return null;
+  return {
+    version: update.version,
+    body: update.body ?? null,
+    async installAndRelaunch() {
+      await update.downloadAndInstall();
+      await tauriRelaunch();
+    },
+  };
 }
 
 function gate<T>(): {

@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Windows disk map with a Rust scan index and a liquid folder view (Liquid Storage Manager)"
 authors = ["Dip Chowdhury"]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.90"
 license = "MIT"
 publish = false
 repository = "https://github.com/dipbd1/rust-disk-management"
@@ -47,7 +47,7 @@ sysinfo = { version = "0.40.1", default-features = false, features = ["disk"] }
 tauri-remote-ui = "1.1.2"
 tauri-plugin-dialog = "2"
 sha2 = "0.10"
-
+tauri-plugin-process = "2"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
@@ -56,3 +56,6 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-updater = "2"

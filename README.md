@@ -4,7 +4,7 @@ A Windows disk map. The scan stays in Rust. The window shows a size-sorted folde
 
 **Platform:** Windows only (x64). Linux and macOS are not supported.
 
-**MSRV:** Rust 1.85 (edition 2024).
+**MSRV:** Rust 1.90 (edition 2024).
 
 **License:** [MIT](LICENSE) © 2026 Dip Chowdhury.
 
@@ -65,6 +65,8 @@ A Windows disk map. The scan stays in Rust. The window shows a size-sorted folde
 
 Download the MSI or NSIS installer from [GitHub Releases](https://github.com/dipbd1/rust-disk-management/releases). Prefer a published release over a draft when both exist.
 
+Installed builds can check for updates from the latest published release (About → Check for updates, or the startup prompt). Signing setup and release steps are in [RELEASING.md](RELEASING.md).
+
 There is no crates.io package and no CLI; this is a desktop app.
 
 ### Admin / UAC
@@ -121,6 +123,6 @@ cargo test --manifest-path src-tauri/Cargo.toml
 npx tsc --noEmit
 ```
 
-The identifier stays `com.anarchy.disk-space-management`, so existing app data paths stay put. Optional code signing uses repository secrets on the Release workflow; unsigned installers still build when those secrets are absent. A store listing is outside this repo.
+The identifier stays `com.anarchy.disk-space-management`, so existing app data paths stay put. Optional Authenticode and updater signing use repository secrets on the Release workflow; unsigned installers still build when those secrets are absent (updater artifacts are skipped). A store listing is outside this repo.
 
-See [CHANGELOG.md](CHANGELOG.md) for the v0.1.0 notes.
+See [CHANGELOG.md](CHANGELOG.md) for the v0.1.0 notes and [RELEASING.md](RELEASING.md) to cut a signed update release.

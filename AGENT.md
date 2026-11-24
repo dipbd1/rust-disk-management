@@ -16,7 +16,7 @@ Forbidden drift:
 
 - Sending the full recursive tree to the webview
 - Rendering more than `GRAPH_CHILD_CAP` (60) child spheres
-- Calling `@tauri-apps/api` or `tauri-remote-ui` outside `src/services/tauriBridge.ts`
+- Calling `@tauri-apps/api`, `@tauri-apps/plugin-*`, or `tauri-remote-ui` outside `src/services/tauriBridge.ts`
 - `.unwrap()` / `.expect()` in commands or services
 - `setState` inside `useFrame`
 - `std::fs::remove_file` / `remove_dir_all` outside `permanent_delete`
@@ -32,7 +32,7 @@ Forbidden drift:
   - `src-tauri/src/commands/` contains ONLY thin Tauri command wrappers. Filesystem scanning, size aggregation, and OS operations belong in `src-tauri/src/services/`.
   - `src/components/explorer/` contains ONLY 2D UI components.
   - `src/components/visualizer/` contains ONLY 3D React Three Fiber components.
-  - Frontend components NEVER call `@tauri-apps/api` or `tauri-remote-ui` directly; all IPC calls must go through typed functions in `src/services/tauriBridge.ts`. `invoke` and `listen` come from `tauri-remote-ui`. `Channel` stays on `@tauri-apps/api`.
+  - Frontend components NEVER call `@tauri-apps/api`, `@tauri-apps/plugin-*`, or `tauri-remote-ui` directly; all IPC calls must go through typed functions in `src/services/tauriBridge.ts`. `invoke` and `listen` come from `tauri-remote-ui`. `Channel` stays on `@tauri-apps/api`. Updater and process plugins are wrapped there too (`checkForAppUpdate`, `appVersion`).
 - **Single source of truth:** Use Zustand (`src/store/useFileStore.ts`) for shared state (`focusedNodeId`, `selectedNodeId`, `scanStatus`, graph view, paged children).
 - **Rust owns the index.** JavaScript holds the open branch, one folder page, and the current graph view. See the caps table in `docs/ARCHITECTURE.md`.
 
