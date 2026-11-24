@@ -1,10 +1,12 @@
 use crate::services::paths::{is_drive_root, normalize_path};
 
-/// Reclaim may recycle the named Windows caches. Duplicate review may not.
+/// Reclaim may recycle the named Windows caches. Delete and duplicate review may not.
 #[derive(Clone, Copy)]
 pub enum GuardMode {
     Reclaim,
     Duplicates,
+    /// Explorer trash / permanent delete: same prefixes as duplicates, no cache exception.
+    Delete,
 }
 
 pub fn is_refused(path: &str, mode: GuardMode) -> bool {
@@ -13,14 +15,17 @@ pub fn is_refused(path: &str, mode: GuardMode) -> bool {
         return true;
     }
     let segs = segments(&path);
-    if segs.iter().any(|seg| seg == "program files" || seg == "program files (x86)") {
+    if segs
+        .iter()
+        .any(|seg| seg == "program files" || seg == "program files (x86)")
+    {
         return true;
     }
     if !os_windows(&segs) {
         return false;
     }
     match mode {
-        GuardMode::Duplicates => true,
+        GuardMode::Duplicates | GuardMode::Delete => true,
         GuardMode::Reclaim => !safe_windows_cache(&segs),
     }
 }
@@ -47,7 +52,10 @@ fn inside(segs: &[String], tail: &[&str]) -> bool {
     if segs.len() < 1 + tail.len() {
         return false;
     }
-    segs[1..].iter().zip(tail).all(|(seg, expected)| seg == expected)
+    segs[1..]
+        .iter()
+        .zip(tail)
+        .all(|(seg, expected)| seg == expected)
 }
 
 fn safe_windows_cache(segs: &[String]) -> bool {
@@ -75,17 +83,40 @@ mod tests {
 
     #[test]
     fn reclaim_allows_named_windows_caches_and_refuses_system32() {
-        assert!(is_refused("C:\\Windows\\System32\\notepad.exe", GuardMode::Reclaim));
-        assert!(is_refused("C:\\Program Files\\App\\node_modules", GuardMode::Reclaim));
-        assert!(is_refused("C:\\Program Files (x86)\\Steam", GuardMode::Reclaim));
+        assert!(is_refused(
+            "C:\\Windows\\System32\\notepad.exe",
+            GuardMode::Reclaim
+        ));
+        assert!(is_refused(
+            "C:\\Program Files\\App\\node_modules",
+            GuardMode::Reclaim
+        ));
+        assert!(is_refused(
+            "C:\\Program Files (x86)\\Steam",
+            GuardMode::Reclaim
+        ));
         assert!(is_refused("C:\\", GuardMode::Reclaim));
         assert!(!is_refused("C:\\Windows\\Temp\\a.tmp", GuardMode::Reclaim));
         assert!(!is_refused(
             "C:\\Windows\\SoftwareDistribution\\Download\\pkg",
             GuardMode::Reclaim
         ));
-        assert!(!is_refused("C:\\Users\\me\\AppData\\Local\\Temp\\a", GuardMode::Reclaim));
-        assert!(is_refused("C:\\Windows\\Temp\\a.tmp", GuardMode::Duplicates));
-        assert!(is_refused("C:\\Windows\\System32\\a.dll", GuardMode::Duplicates));
+        assert!(!is_refused(
+            "C:\\Users\\me\\AppData\\Local\\Temp\\a",
+            GuardMode::Reclaim
+        ));
+        assert!(is_refused(
+            "C:\\Windows\\Temp\\a.tmp",
+            GuardMode::Duplicates
+        ));
+        assert!(is_refused(
+            "C:\\Windows\\System32\\a.dll",
+            GuardMode::Duplicates
+        ));
+        assert!(is_refused("C:\\Windows\\Temp\\a.tmp", GuardMode::Delete));
+        assert!(is_refused(
+            "C:\\Program Files\\App\\readme.txt",
+            GuardMode::Delete
+        ));
     }
 }

@@ -101,7 +101,10 @@ impl AppState {
             RemoteScan::Attach
         } else if !session.scanning
             && session.scan_path == path
-            && session.latest.as_ref().is_some_and(|progress| progress.done)
+            && session
+                .latest
+                .as_ref()
+                .is_some_and(|progress| progress.done)
         {
             RemoteScan::Replay
         } else {

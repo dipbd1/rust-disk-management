@@ -68,7 +68,12 @@ impl ScanIndex {
     }
 
     /// Insert a path that is already normalized. Does not parse it again.
-    pub fn insert_ready(&mut self, path: String, is_dir: bool, size_bytes: u64) -> Result<(), AppError> {
+    pub fn insert_ready(
+        &mut self,
+        path: String,
+        is_dir: bool,
+        size_bytes: u64,
+    ) -> Result<(), AppError> {
         if path.is_empty() {
             return Err(AppError::Scan("empty path".into()));
         }

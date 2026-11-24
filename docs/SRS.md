@@ -70,7 +70,7 @@ A high-performance desktop storage analyzer and file management utility for Wind
 - **FR-10.2:** A click selects a tile, including the aggregate. A double click on a folder focuses it, the same as a liquid ball. Layout runs when the graph payload or the pane size changes, not inside `useFrame`. `GRAPH_CHILD_CAP` stays 60.
 
 #### FR-11: Delete means the Recycle Bin
-- **FR-11.1:** Delete asks, then moves the selection to the Recycle Bin and toasts the freed bytes. A node in the current graph drains after that confirm. Shift+Delete keeps the permanent-delete confirm. Drive roots cannot be deleted.
+- **FR-11.1:** Delete asks, then moves the selection to the Recycle Bin and toasts the freed bytes. A node in the current graph drains after that confirm. Shift+Delete keeps the permanent-delete confirm. Drive roots, `\Windows\`, `\Program Files\`, and `\Program Files (x86)\` cannot be deleted through explorer trash or permanent delete (backend refuses even if the UI confirm is bypassed).
 
 ### 3. Non-Functional Requirements (NFR)
 - **NFR-1 (Frame Rate):** The 3D viewport and 2D UI must maintain 60 FPS during idle, camera orbit, and tree scrolling on modern integrated or discrete GPUs.
@@ -82,9 +82,9 @@ These decisions are part of the contract. The implementation detail lives in [AR
 
 - React 19 stays (the scaffold is 19; do not downgrade to React 18).
 - ReFS volumes are listed alongside NTFS, exFAT, and FAT32. Removable drives are listed regardless of filesystem.
-- Drive roots (`C:\`) cannot be deleted. `permanent_delete` is the only command allowed to erase bytes, and only after the UI confirmation modal.
+- Drive roots (`C:\`) cannot be deleted. `permanent_delete` is the only command allowed to erase bytes, and only after the UI confirmation modal. The backend also refuses never-delete prefixes on `trash_path` and `permanent_delete` without relying on the UI.
 - Reclaim and duplicate review never call `permanent_delete`. They recycle through the Recycle Bin. Emptying the Recycle Bin uses the Windows recycle API.
-- The never-delete list refuses `\Windows\` except the named safe caches (Windows Temp, Windows Update download cache, Delivery Optimization cache), `\Program Files\`, `\Program Files (x86)\`, and drive roots. Duplicate review has no Windows-cache exception.
+- The never-delete list refuses `\Windows\` except the named safe caches for reclaim only (Windows Temp, Windows Update download cache, Delivery Optimization cache), `\Program Files\`, `\Program Files (x86)\`, and drive roots. Duplicate review and explorer delete have no Windows-cache exception.
 - Insight, search, reclaim, duplicate, and growth results are never merged into tree pages or the hidden folder list.
 - The area map uses the existing graph payload. It does not raise `GRAPH_CHILD_CAP`.
 - The growth file is a compact snapshot, not a second copy of the tree, and it is not sent wholesale to the webview.

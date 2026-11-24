@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::models::{
-    NodeKind, ReclaimGroupStatus, ReclaimGroupTick, ReclaimPhase, ReclaimProgress, ReclaimRow, ReclaimTier,
+    NodeKind, ReclaimGroupStatus, ReclaimGroupTick, ReclaimPhase, ReclaimProgress, ReclaimRow,
+    ReclaimTier,
 };
 use crate::services::guard::{self, GuardMode};
 use crate::services::paths::ready_parent;
 
-use super::catalog::{match_dir, match_file, FileHit};
+use super::catalog::{FileHit, match_dir, match_file};
 use super::facts::NodeFact;
 
 const GROUPS: [(&str, &str); 6] = [
@@ -36,7 +37,11 @@ pub struct WalkOutcome {
 }
 
 /// One pass over the snapshot. `on_progress` runs for every fact; the caller throttles sends.
-pub fn walk(facts: &[NodeFact], cancel: &AtomicBool, mut on_progress: impl FnMut(&WalkTick<'_>)) -> WalkOutcome {
+pub fn walk(
+    facts: &[NodeFact],
+    cancel: &AtomicBool,
+    mut on_progress: impl FnMut(&WalkTick<'_>),
+) -> WalkOutcome {
     let total = facts.len() as u64;
     let mut rows = Vec::new();
     let mut thumbs: HashMap<String, (u64, Vec<String>)> = HashMap::new();
@@ -45,7 +50,14 @@ pub fn walk(facts: &[NodeFact], cancel: &AtomicBool, mut on_progress: impl FnMut
 
     for (seen, fact) in facts.iter().enumerate() {
         if cancel.load(Ordering::Relaxed) {
-            on_progress(&tick(seen as u64, total, &fact.path, &group_bytes, true, false));
+            on_progress(&tick(
+                seen as u64,
+                total,
+                &fact.path,
+                &group_bytes,
+                true,
+                false,
+            ));
             return WalkOutcome {
                 rows,
                 cancelled: true,
@@ -53,13 +65,24 @@ pub fn walk(facts: &[NodeFact], cancel: &AtomicBool, mut on_progress: impl FnMut
             };
         }
         last_path = fact.path.as_str();
-        on_progress(&tick(seen as u64 + 1, total, last_path, &group_bytes, false, false));
+        on_progress(&tick(
+            seen as u64 + 1,
+            total,
+            last_path,
+            &group_bytes,
+            false,
+            false,
+        ));
         if !push_fact(fact, &mut rows, &mut thumbs, &mut group_bytes) {
             continue;
         }
     }
     fold_thumbs(&mut rows, thumbs);
-    rows.sort_by(|a, b| super::tier_rank(a.tier).cmp(&super::tier_rank(b.tier)).then(b.size_bytes.cmp(&a.size_bytes)));
+    rows.sort_by(|a, b| {
+        super::tier_rank(a.tier)
+            .cmp(&super::tier_rank(b.tier))
+            .then(b.size_bytes.cmp(&a.size_bytes))
+    });
     on_progress(&tick(total, total, last_path, &group_bytes, false, true));
     WalkOutcome {
         rows,
@@ -84,7 +107,13 @@ pub fn cancelled_tick() -> ReclaimProgress {
     bin_tick(0, &[0; 6], 0, true, true)
 }
 
-pub fn bin_tick(total: u64, group_bytes: &[u64; 6], bin_bytes: u64, done: bool, cancelled: bool) -> ReclaimProgress {
+pub fn bin_tick(
+    total: u64,
+    group_bytes: &[u64; 6],
+    bin_bytes: u64,
+    done: bool,
+    cancelled: bool,
+) -> ReclaimProgress {
     ReclaimProgress {
         checked: total,
         total,
@@ -96,7 +125,14 @@ pub fn bin_tick(total: u64, group_bytes: &[u64; 6], bin_bytes: u64, done: bool, 
     }
 }
 
-fn tick<'a>(checked: u64, total: u64, path: &'a str, group_bytes: &'a [u64; 6], cancelled: bool, index_done: bool) -> WalkTick<'a> {
+fn tick<'a>(
+    checked: u64,
+    total: u64,
+    path: &'a str,
+    group_bytes: &'a [u64; 6],
+    cancelled: bool,
+    index_done: bool,
+) -> WalkTick<'a> {
     WalkTick {
         checked,
         total,
@@ -220,7 +256,12 @@ fn add(groups: &mut [u64; 6], index: usize, size: u64) {
     groups[index] = groups[index].saturating_add(size);
 }
 
-fn group_list(bytes: &[u64; 6], bin_bytes: u64, bin_phase: bool, finished: bool) -> Vec<ReclaimGroupTick> {
+fn group_list(
+    bytes: &[u64; 6],
+    bin_bytes: u64,
+    bin_phase: bool,
+    finished: bool,
+) -> Vec<ReclaimGroupTick> {
     let mut groups = Vec::with_capacity(GROUPS.len() + 1);
     for (index, (id, title)) in GROUPS.iter().enumerate() {
         groups.push(ReclaimGroupTick {

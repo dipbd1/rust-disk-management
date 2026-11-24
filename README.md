@@ -2,6 +2,22 @@
 
 A Windows disk map. The scan stays in Rust. The window shows a size-sorted folder tree and a liquid view of the folder you are in.
 
+**Platform:** Windows only (x64). Linux and macOS are not supported.
+
+**MSRV:** Rust 1.85 (edition 2024).
+
+**License:** [MIT](LICENSE) © 2026 Dip Chowdhury.
+
+## Install
+
+Download the MSI or NSIS installer from [GitHub Releases](https://github.com/dipbd1/rust-disk-management/releases). Prefer a published release over a draft when both exist.
+
+There is no crates.io package and no CLI; this is a desktop app.
+
+### Admin / UAC
+
+An elevated process can read the NTFS Master File Table for a faster full-drive scan. If you are not elevated and a fixed NTFS drive is present, the app asks once whether to restart as administrator. Declining still works: it walks the folder tree instead. You can start a faster elevated scan later from the top bar.
+
 ## Scan
 
 The top bar lists mounted drives. Choose one to scan it. **Folder** opens a folder and scans that path instead.
@@ -25,7 +41,7 @@ The right pane is the liquid graph of the focused folder: at most 60 children, p
 
 ## Cleanup rules
 
-Delete asks, then moves the selection to the Recycle Bin and reports the freed bytes. Shift+Delete asks before permanent delete. A drive root cannot be deleted. Clicking the drive that is already the scan root returns to that root and does not start another walk.
+Delete asks, then moves the selection to the Recycle Bin and reports the freed bytes. Shift+Delete asks before permanent delete. Drive roots, `\Windows\`, `\Program Files\`, and `\Program Files (x86)\` cannot be deleted from the explorer (the backend refuses them even if a confirm is skipped). Clicking the drive that is already the scan root returns to that root and does not start another walk.
 
 **Reclaim** lists only catalog matches, each with a sentence:
 
@@ -52,4 +68,6 @@ cargo test --manifest-path src-tauri/Cargo.toml
 npx tsc --noEmit
 ```
 
-The identifier stays `com.anarchy.disk-space-management`, so existing app data paths stay put. Code signing and a store listing are outside this repo.
+The identifier stays `com.anarchy.disk-space-management`, so existing app data paths stay put. Optional code signing uses repository secrets on the Release workflow; unsigned installers still build when those secrets are absent. A store listing is outside this repo.
+
+See [CHANGELOG.md](CHANGELOG.md) for the v0.1.0 notes.

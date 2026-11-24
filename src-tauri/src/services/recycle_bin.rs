@@ -18,7 +18,7 @@ pub fn query() -> RecycleBinStatus {
 }
 
 pub fn empty() -> Result<BinEmptyResult, AppError> {
-    let before = query_info().map_err(|err| AppError::Reclaim(err))?;
+    let before = query_info().map_err(AppError::Reclaim)?;
     let hr = unsafe {
         windows_sys::Win32::UI::Shell::SHEmptyRecycleBinW(
             std::ptr::null_mut(),
@@ -27,7 +27,9 @@ pub fn empty() -> Result<BinEmptyResult, AppError> {
         )
     };
     if hr < 0 {
-        return Err(AppError::Reclaim(format!("empty recycle bin failed ({hr})")));
+        return Err(AppError::Reclaim(format!(
+            "empty recycle bin failed ({hr})"
+        )));
     }
     Ok(BinEmptyResult {
         freed_bytes: before.size_bytes,
@@ -40,7 +42,8 @@ fn query_info() -> Result<RecycleBinStatus, String> {
         i64Size: 0,
         i64NumItems: 0,
     };
-    let hr = unsafe { windows_sys::Win32::UI::Shell::SHQueryRecycleBinW(std::ptr::null(), &mut info) };
+    let hr =
+        unsafe { windows_sys::Win32::UI::Shell::SHQueryRecycleBinW(std::ptr::null(), &mut info) };
     if hr < 0 {
         return Err(format!("recycle bin query failed ({hr})"));
     }

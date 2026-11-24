@@ -112,7 +112,10 @@ impl ScanIndex {
             let parent = &self.nodes[id.0 as usize];
             groups.push(SatellitePreview {
                 parent_path: parent.path.clone(),
-                nodes: child_ids.into_iter().map(|cid| self.to_file_node(cid)).collect(),
+                nodes: child_ids
+                    .into_iter()
+                    .map(|cid| self.to_file_node(cid))
+                    .collect(),
             });
         }
         groups

@@ -13,9 +13,9 @@ use crate::services::guard::{self, GuardMode};
 use crate::services::index::ScanIndex;
 use crate::services::paths::is_drive_root;
 
+use facts::NodeFact;
 pub use facts::snapshot;
 pub use walk::{bin_tick, cancelled_tick, index_tick, walk};
-use facts::NodeFact;
 
 #[cfg(test)]
 pub fn report(index: &ScanIndex, recycle_bin: RecycleBinStatus) -> ReclaimReport {
@@ -46,7 +46,10 @@ pub fn recycle_paths_from(facts: &[NodeFact], ids: &[String]) -> Result<Vec<Stri
             return Err(AppError::Reclaim(format!("unknown reclaim item {id}")));
         };
         if !row.can_recycle {
-            return Err(AppError::Reclaim(format!("no delete action for {}", row.title)));
+            return Err(AppError::Reclaim(format!(
+                "no delete action for {}",
+                row.title
+            )));
         }
         for path in &row.paths {
             if is_drive_root(path) || guard::is_refused(path, GuardMode::Reclaim) {
@@ -97,9 +100,12 @@ pub(crate) fn download_is_old(path: &str) -> bool {
     let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) else {
         return false;
     };
-    now.as_secs().saturating_sub(modified_secs.as_secs()) >= RECLAIM_DOWNLOAD_AGE_DAYS * 24 * 60 * 60
+    now.as_secs().saturating_sub(modified_secs.as_secs())
+        >= RECLAIM_DOWNLOAD_AGE_DAYS * 24 * 60 * 60
 }
 
+// Builds a ReclaimRow in one place; a struct literal at each call site would sprawl.
+#[allow(clippy::too_many_arguments)]
 fn row(
     id: String,
     tier: ReclaimTier,

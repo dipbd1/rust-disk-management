@@ -26,14 +26,21 @@ fn content_hash_groups_copies_and_skips_hard_links() {
     fs::write(&diff_b, vec![2u8; 32]).unwrap();
     fs::write(&link, vec![9u8; 32]).unwrap();
     fs::hard_link(&link, scratch.0.join("link-again.bin")).unwrap();
-    let files = ["same-a.bin", "same-b.bin", "diff-a.bin", "diff-b.bin", "link.bin", "link-again.bin"]
-        .into_iter()
-        .map(|name| FileCand {
-            path: scratch.0.join(name).to_string_lossy().to_string(),
-            name: name.to_string(),
-            size_bytes: 32,
-        })
-        .collect();
+    let files = [
+        "same-a.bin",
+        "same-b.bin",
+        "diff-a.bin",
+        "diff-b.bin",
+        "link.bin",
+        "link-again.bin",
+    ]
+    .into_iter()
+    .map(|name| FileCand {
+        path: scratch.0.join(name).to_string_lossy().to_string(),
+        name: name.to_string(),
+        size_bytes: 32,
+    })
+    .collect();
     let cancel = AtomicBool::new(false);
     let progress = review_files(files, &cancel, |_| {});
     assert!(!progress.cancelled);

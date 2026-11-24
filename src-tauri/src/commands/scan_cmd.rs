@@ -78,7 +78,13 @@ async fn run_scan(
         // A replaced scan must not tell the browser this walk is the finished one.
         let stored = walk_state.finish_scan(generation, index);
         if stored {
-            publish_progress(&walk_state, &app, generation, &on_progress, progress.clone());
+            publish_progress(
+                &walk_state,
+                &app,
+                generation,
+                &on_progress,
+                progress.clone(),
+            );
             if !progress.cancelled {
                 record_growth(&app, &walk_state);
             }

@@ -8,8 +8,10 @@ use tauri_remote_ui::EmitterExt;
 
 use crate::error::AppError;
 use crate::models::{
-    BinEmptyResult, DuplicateProgress, ExtensionRollup, GrowthDelta, InsightPage, LargestSort, RecycleBatch,
+    BinEmptyResult, DuplicateProgress, ExtensionRollup, GrowthDelta, InsightPage, LargestSort,
+    RecycleBatch,
 };
+use crate::services::guard::GuardMode;
 use crate::services::{deletion, duplicates, insights, recycle_bin};
 use crate::state::AppState;
 
@@ -24,7 +26,9 @@ pub fn largest_files(
     sort: LargestSort,
     descending: bool,
 ) -> Result<InsightPage, AppError> {
-    app_state.with_insight(|index, cache| insights::largest_files(index, cache, offset, limit, sort, descending))
+    app_state.with_insight(|index, cache| {
+        insights::largest_files(index, cache, offset, limit, sort, descending)
+    })
 }
 
 #[tauri::command]
@@ -34,12 +38,13 @@ pub fn search_index(
     offset: u32,
     limit: u32,
 ) -> Result<InsightPage, AppError> {
-    app_state.with_insight(|index, cache| insights::search_index(index, cache, &query, offset, limit))
+    app_state
+        .with_insight(|index, cache| insights::search_index(index, cache, &query, offset, limit))
 }
 
 #[tauri::command]
 pub fn extension_rollup(app_state: State<'_, Arc<AppState>>) -> Result<ExtensionRollup, AppError> {
-    app_state.with_insight(|index, cache| insights::extension_rollup(index, cache))
+    app_state.with_insight(insights::extension_rollup)
 }
 
 #[tauri::command]
@@ -50,7 +55,9 @@ pub fn extension_files(
     offset: u32,
     limit: u32,
 ) -> Result<InsightPage, AppError> {
-    app_state.with_insight(|index, cache| insights::extension_files(index, cache, &extension, other, offset, limit))
+    app_state.with_insight(|index, cache| {
+        insights::extension_files(index, cache, &extension, other, offset, limit)
+    })
 }
 
 #[tauri::command]
@@ -61,7 +68,9 @@ pub fn empty_recycle_bin() -> Result<BinEmptyResult, AppError> {
 #[tauri::command]
 pub fn growth_delta(app_state: State<'_, Arc<AppState>>) -> Result<GrowthDelta, AppError> {
     let root = app_state.with_index(|index| {
-        index.root_path().ok_or_else(|| AppError::History("scan has no root".into()))
+        index
+            .root_path()
+            .ok_or_else(|| AppError::History("scan has no root".into()))
     })?;
     Ok(app_state.growth().unwrap_or(GrowthDelta {
         root,
@@ -74,13 +83,20 @@ pub fn growth_delta(app_state: State<'_, Arc<AppState>>) -> Result<GrowthDelta, 
 
 #[tauri::command]
 pub async fn pick_scan_folder(app: AppHandle) -> Result<Option<String>, AppError> {
-    let picked = tauri::async_runtime::spawn_blocking(move || app.dialog().file().set_title("Scan a folder").blocking_pick_folder())
-        .await
-        .map_err(|err| AppError::Scan(format!("folder dialog stopped: {err}")))?;
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .set_title("Scan a folder")
+            .blocking_pick_folder()
+    })
+    .await
+    .map_err(|err| AppError::Scan(format!("folder dialog stopped: {err}")))?;
     let Some(path) = picked else {
         return Ok(None);
     };
-    Ok(Some(crate::services::paths::normalize_path(&path.to_string())))
+    Ok(Some(crate::services::paths::normalize_path(
+        &path.to_string(),
+    )))
 }
 
 #[tauri::command]
@@ -118,7 +134,7 @@ pub fn recycle_duplicate_copies(
     paths: Vec<String>,
 ) -> Result<RecycleBatch, AppError> {
     let paths = app_state.duplicate_copy_paths(&paths)?;
-    deletion::trash_many(&app_state, &paths)
+    deletion::trash_many(&app_state, &paths, GuardMode::Duplicates)
 }
 
 async fn run_duplicates(
@@ -152,7 +168,9 @@ async fn run_duplicates(
         Ok(progress) => progress,
         Err(err) => {
             state.finish_duplicates(generation, Vec::new());
-            return Err(AppError::Duplicates(format!("duplicate review stopped: {err}")));
+            return Err(AppError::Duplicates(format!(
+                "duplicate review stopped: {err}"
+            )));
         }
     };
     if state.finish_duplicates(generation, progress.groups.clone()) {

@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::models::{ReclaimGroupStatus, ReclaimPhase};
 
-use super::{index_tick, recycle_paths, report, snapshot, walk, RecycleBinStatus, ScanIndex};
+use super::{RecycleBinStatus, ScanIndex, index_tick, recycle_paths, report, snapshot, walk};
 
 fn sample() -> ScanIndex {
     let mut index = ScanIndex::new(1);
@@ -48,15 +48,32 @@ fn reclaim_never_matches_system32_or_program_files() {
         },
     )
     .rows;
-    assert!(rows.iter().all(|row| !row.reveal_path.to_ascii_lowercase().contains("system32")));
-    assert!(rows.iter().all(|row| !row.paths.iter().any(|path| path.to_ascii_lowercase().contains("system32"))));
-    assert!(rows.iter().all(|row| !row.reveal_path.to_ascii_lowercase().contains("program files")));
+    assert!(
+        rows.iter()
+            .all(|row| !row.reveal_path.to_ascii_lowercase().contains("system32"))
+    );
+    assert!(rows.iter().all(|row| {
+        !row.paths
+            .iter()
+            .any(|path| path.to_ascii_lowercase().contains("system32"))
+    }));
+    assert!(rows.iter().all(|row| {
+        !row.reveal_path
+            .to_ascii_lowercase()
+            .contains("program files")
+    }));
     assert!(rows.iter().any(|row| row.id.starts_with("windows-temp:")));
     assert!(rows.iter().any(|row| row.id.starts_with("user-temp:")));
-    assert!(rows.iter().any(|row| row.reveal_path == "C:\\Users\\me\\proj\\node_modules"));
-    let hiber = rows.iter().find(|row| row.title == "hiberfil.sys").expect("hiberfil");
+    assert!(
+        rows.iter()
+            .any(|row| row.reveal_path == "C:\\Users\\me\\proj\\node_modules")
+    );
+    let hiber = rows
+        .iter()
+        .find(|row| row.title == "hiberfil.sys")
+        .expect("hiberfil");
     assert!(!hiber.can_recycle);
-    assert!(recycle_paths(&sample(), &[hiber.id.clone()]).is_err());
+    assert!(recycle_paths(&sample(), std::slice::from_ref(&hiber.id)).is_err());
 }
 
 #[test]
@@ -87,7 +104,11 @@ fn index_tick_leaves_the_recycle_bin_pending() {
             && !progress.done
             && progress.groups[6].id == "bin"
             && progress.groups[6].status == ReclaimGroupStatus::Pending
-            && progress.groups.iter().take(6).all(|group| group.status == ReclaimGroupStatus::Scanning);
+            && progress
+                .groups
+                .iter()
+                .take(6)
+                .all(|group| group.status == ReclaimGroupStatus::Scanning);
     });
     assert!(pending);
 }

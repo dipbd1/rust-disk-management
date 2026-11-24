@@ -33,11 +33,15 @@ pub fn candidate_files(index: &ScanIndex) -> Vec<FileCand> {
         if size < DUPLICATE_MIN_BYTES {
             continue;
         }
-        let Some(path) = index.path_at(id) else { continue };
+        let Some(path) = index.path_at(id) else {
+            continue;
+        };
         if guard::is_refused(path, GuardMode::Duplicates) {
             continue;
         }
-        let Some(name) = index.name_at(id) else { continue };
+        let Some(name) = index.name_at(id) else {
+            continue;
+        };
         files.push(FileCand {
             path: path.to_string(),
             name: name.to_string(),
@@ -91,7 +95,9 @@ pub fn review_files(
 fn collapse_paths(group: Vec<FileCand>) -> Vec<ReadyFile> {
     let mut unique: HashMap<(u32, u64), ReadyFile> = HashMap::new();
     for file in group {
-        let Some(id) = file_identity(&file.path) else { continue };
+        let Some(id) = file_identity(&file.path) else {
+            continue;
+        };
         let ready = ReadyFile {
             file,
             volume: id.0,
@@ -123,9 +129,9 @@ fn file_identity(path: &str) -> Option<(u32, u64)> {
     use std::os::windows::fs::MetadataExt;
     use windows_sys::Win32::Foundation::{CloseHandle, FILETIME, INVALID_HANDLE_VALUE};
     use windows_sys::Win32::Storage::FileSystem::{
-        CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_FLAG_BACKUP_SEMANTICS,
-        FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
-        OPEN_EXISTING,
+        BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_FLAG_BACKUP_SEMANTICS,
+        FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ,
+        FILE_SHARE_WRITE, GetFileInformationByHandle, OPEN_EXISTING,
     };
     const OFFLINE: u32 = 0x1000;
     const REPARSE: u32 = 0x400;
@@ -135,7 +141,10 @@ fn file_identity(path: &str) -> Option<(u32, u64)> {
     if meta.file_attributes() & (OFFLINE | REPARSE | RECALL_ON_OPEN | RECALL_ON_DATA_ACCESS) != 0 {
         return None;
     }
-    let wide: Vec<u16> = std::ffi::OsStr::new(path).encode_wide().chain(std::iter::once(0)).collect();
+    let wide: Vec<u16> = std::ffi::OsStr::new(path)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
     let handle = unsafe {
         CreateFileW(
             wide.as_ptr(),
@@ -150,7 +159,10 @@ fn file_identity(path: &str) -> Option<(u32, u64)> {
     if handle == INVALID_HANDLE_VALUE {
         return None;
     }
-    let time = FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
+    let time = FILETIME {
+        dwLowDateTime: 0,
+        dwHighDateTime: 0,
+    };
     let mut info = BY_HANDLE_FILE_INFORMATION {
         dwFileAttributes: 0,
         ftCreationTime: time,
@@ -220,7 +232,12 @@ fn tick(checked: u64, total: u64, path: &str, done: bool) -> DuplicateProgress {
     }
 }
 
-fn finished(cancelled: bool, hashed: Vec<Candidate>, checked: u64, total: u64) -> DuplicateProgress {
+fn finished(
+    cancelled: bool,
+    hashed: Vec<Candidate>,
+    checked: u64,
+    total: u64,
+) -> DuplicateProgress {
     let (groups, truncated) = group::build_groups(hashed);
     DuplicateProgress {
         checked,

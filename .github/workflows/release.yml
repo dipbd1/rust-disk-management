@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: windows-installers
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Windows installers (MSI + NSIS)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional Authenticode / updater signing — leave secrets unset to ship unsigned.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        with:
+          projectPath: .
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('v0.1.0-draft-{0}', github.run_number) }}
+          releaseName: Liquid Storage Manager ${{ github.ref_type == 'tag' && github.ref_name || format('v0.1.0-draft-{0}', github.run_number) }}
+          releaseBody: |
+            Windows installers for Liquid Storage Manager.
+
+            - MSI and NSIS packages (x64)
+            - Windows-only; admin elevation optional for faster NTFS MFT scans
+            - See CHANGELOG.md and the README install notes
+
+            Draft release — review artifacts before publishing.
+          releaseDraft: true
+          prerelease: false
+          args: --bundles msi,nsis

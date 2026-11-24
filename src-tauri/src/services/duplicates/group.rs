@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::limits::DUPLICATE_GROUP_CAP;
 use crate::models::{DuplicateFile, DuplicateGroup};
-use crate::services::guard::{self, segments, GuardMode};
+use crate::services::guard::{self, GuardMode, segments};
 
 pub struct Candidate {
     pub path: String,
@@ -100,7 +100,10 @@ fn in_user_library(path: &str) -> bool {
         return false;
     };
     segs[users + 2..].iter().any(|seg| {
-        matches!(seg.as_str(), "documents" | "music" | "pictures" | "videos" | "desktop")
+        matches!(
+            seg.as_str(),
+            "documents" | "music" | "pictures" | "videos" | "desktop"
+        )
     })
 }
 
@@ -132,13 +135,23 @@ mod tests {
             item("C:\\projects\\photo.bin", "hash-e", 7),
         ];
         let (groups, _) = build_groups(items);
-        assert!(groups.iter().all(|group| group.id != "hash-a" && group.id != "hash-b"));
+        assert!(
+            groups
+                .iter()
+                .all(|group| group.id != "hash-a" && group.id != "hash-b")
+        );
         assert!(groups.iter().all(|group| group.id != "hash-c"));
         assert!(groups.iter().all(|group| group.id != "hash-d"));
-        let photo = groups.iter().find(|group| group.id == "hash-e").expect("photo group");
+        let photo = groups
+            .iter()
+            .find(|group| group.id == "hash-e")
+            .expect("photo group");
         assert_eq!(photo.keeper.path, "C:\\projects\\photo.bin");
         assert_eq!(photo.wasted_bytes, 10);
         assert_eq!(photo.copies.len(), 1);
-        assert!(better_keeper("C:\\Windows\\Temp\\a.bin", "C:\\work\\a.bin") == false);
+        assert!(!better_keeper(
+            "C:\\Windows\\Temp\\a.bin",
+            "C:\\work\\a.bin"
+        ));
     }
 }

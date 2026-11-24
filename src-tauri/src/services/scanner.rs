@@ -68,7 +68,11 @@ mod tests {
         assert_eq!(index.size_of(&format!("{root}\\sub")), Some(25));
         let page = index.children_page(&root, 0, 10, None).unwrap();
         assert!(page.nodes.iter().any(|node| node.name == ".secret"));
-        assert!(page.nodes.windows(2).all(|pair| pair[0].size_bytes >= pair[1].size_bytes));
+        assert!(
+            page.nodes
+                .windows(2)
+                .all(|pair| pair[0].size_bytes >= pair[1].size_bytes)
+        );
         let _ = callbacks;
 
         let cancel = Arc::new(AtomicBool::new(true));
@@ -76,6 +80,12 @@ mod tests {
         assert!(stopped.cancelled);
         assert!(stopped.done);
         assert_eq!(partial.size_of(&root), Some(0));
-        assert!(partial.children_page(&root, 0, 10, None).unwrap().nodes.is_empty());
+        assert!(
+            partial
+                .children_page(&root, 0, 10, None)
+                .unwrap()
+                .nodes
+                .is_empty()
+        );
     }
 }
