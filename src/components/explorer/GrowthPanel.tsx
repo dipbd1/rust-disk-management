@@ -8,6 +8,8 @@ const ROW_HEIGHT = 40;
 export function GrowthPanel() {
   const growth = useFileStore((state) => state.growth);
   const scanStatus = useFileStore((state) => state.scanStatus);
+  const selectedNodeId = useFileStore((state) => state.selectedNodeId);
+  const openGrowth = useFileStore((state) => state.openGrowth);
   const parentRef = useRef<HTMLDivElement>(null);
   const entries = growth?.entries ?? [];
   const virtualizer = useVirtualizer({
@@ -33,11 +35,20 @@ export function GrowthPanel() {
             {virtualizer.getVirtualItems().map((item) => {
               const entry = entries[item.index];
               if (!entry) return null;
+              const selected = selectedNodeId === entry.path;
               return (
-                <div key={entry.path} className="absolute top-0 left-0 flex h-10 w-full items-center gap-2 px-3" style={{ transform: `translateY(${item.start}px)` }} title={entry.path}>
+                <button
+                  key={entry.path}
+                  type="button"
+                  title={entry.path}
+                  aria-selected={selected}
+                  className={`absolute top-0 left-0 flex h-10 w-full items-center gap-2 px-3 text-left ${selected ? "bg-cyan-400/15" : "hover:bg-white/5"}`}
+                  style={{ transform: `translateY(${item.start}px)` }}
+                  onClick={() => void openGrowth(entry)}
+                >
                   <span className="min-w-0 flex-1 truncate text-sm">{entry.name}</span>
                   <span className="shrink-0 font-mono text-[11px] text-emerald-200">+{formatBytes(entry.deltaBytes)}</span>
-                </div>
+                </button>
               );
             })}
           </div>

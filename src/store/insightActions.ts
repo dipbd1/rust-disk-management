@@ -1,5 +1,6 @@
 import { INSIGHT_PAGE_SIZE } from "../lib/limits";
 import { errorMessage } from "../lib/format";
+import { ancestorChain } from "../lib/paths";
 import {
   extensionFiles,
   extensionRollup,
@@ -8,7 +9,7 @@ import {
   pickScanFolder,
   searchIndex,
 } from "../services/tauriBridge";
-import type { FileNode, InsightPage, LargestOrder } from "../types/filesystem";
+import type { FileNode, GrowthEntry, InsightPage, LargestOrder } from "../types/filesystem";
 import { upsert } from "./cache";
 import { focusNode } from "./navActions";
 import { scanDrive } from "./scanActions";
@@ -125,6 +126,20 @@ export async function openLocated(set: SetFile, get: GetFile, node: FileNode): P
   if (!target) return;
   await focusNode(set, get, target);
   if (node.kind !== "folder") set({ selectedNodeId: node.id });
+}
+
+function growthFocus(entry: GrowthEntry): string | null {
+  if (entry.kind === "folder") return entry.path;
+  const chain = ancestorChain(entry.path);
+  return chain.length >= 2 ? chain[chain.length - 2] : null;
+}
+
+export async function openGrowth(set: SetFile, get: GetFile, entry: GrowthEntry): Promise<void> {
+  const target = growthFocus(entry);
+  if (!target) return;
+  await focusNode(set, get, target);
+  if (entry.kind === "folder" || get().focusedNodeId !== target) return;
+  set({ selectedNodeId: entry.path });
 }
 
 export async function loadGrowth(set: SetFile): Promise<void> {

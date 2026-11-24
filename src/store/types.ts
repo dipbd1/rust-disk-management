@@ -5,6 +5,7 @@ import type {
   FileNode,
   GraphView,
   GrowthDelta,
+  GrowthEntry,
   InsightPage,
   LargestOrder,
   ReclaimProgress,
@@ -115,6 +116,7 @@ export interface FileActions {
   openExtension: (target: ExtensionTarget) => Promise<void>;
   loadMoreExtension: () => Promise<void>;
   openLocated: (node: FileNode) => Promise<void>;
+  openGrowth: (entry: GrowthEntry) => Promise<void>;
   loadReclaim: () => Promise<void>;
   cancelReclaim: () => Promise<void>;
   loadGrowth: () => Promise<void>;

@@ -63,7 +63,7 @@ A high-performance desktop storage analyzer and file management utility for Wind
 
 #### FR-9: What grew
 - **FR-9.1:** A finished scan that was not cancelled saves a compact snapshot for that root: total bytes, each direct child's size, and the 200 largest file paths and sizes. The file lives in the app data directory.
-- **FR-9.2:** The next finished scan of the same root shows folders that grew and large files that are new or bigger. The webview receives that delta list only.
+- **FR-9.2:** The next finished scan of the same root shows folders that grew and large files that are new or bigger. The webview receives that delta list only. Choosing a folder row focuses that folder in the graph. Choosing a file row focuses its parent and selects the file.
 
 #### FR-10: Area map, same cap
 - **FR-10.1:** A visualizer toggle draws a squarified map of the current graph view: the focused folder, at most 60 children, and the existing aggregate. The liquid graph stays the default.
