@@ -11,11 +11,14 @@ First public Windows release candidate.
 - Disk map with Rust-owned scan index, virtualized explorer, and liquid / area-map views
 - Elevated NTFS MFT scan and `FindFirstFileEx` folder walk fallback
 - Reclaim, duplicates, largest files, types, search, and growth panels
-- Recycle Bin deletes by default; permanent delete behind a confirm
+- Recycle Bin deletes by default; permanent delete behind a stronger confirm
+- Delete preview shows items, count, size, and destination before commit
+- JSONL deletion log in app data plus a Deleted tab with Restore / Open Recycle Bin
 - Backend never-delete guards on explorer trash and permanent delete (`\Windows\`, Program Files, drive roots)
 - In-app auto-updater (`tauri-plugin-updater` + process relaunch): startup check, dismissible prompt, About → Check for updates
 - Windows CI (fmt, clippy, tests, frontend build)
 - Draft GitHub Release workflow for MSI and NSIS installers on `v*` tags (signed updater artifacts and `latest.json` when signing secrets are set)
+- WinGet and Scoop packaging manifests under `packaging/`
 - MIT license
 
 ### Notes

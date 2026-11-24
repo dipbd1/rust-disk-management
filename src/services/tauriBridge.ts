@@ -8,6 +8,7 @@ import type {
   BinEmptyResult,
   ChildrenPage,
   DeleteResult,
+  DeletionLogEntry,
   DriveInfo,
   DuplicateProgress,
   ElevationStatus,
@@ -20,6 +21,7 @@ import type {
   ReclaimReport,
   ReclaimScanResult,
   RecycleBatch,
+  RestoreResult,
   ScanProgress,
 } from "../types/filesystem";
 
@@ -145,6 +147,18 @@ export function trashPath(path: string): Promise<DeleteResult> {
 
 export function permanentDelete(path: string): Promise<DeleteResult> {
   return invoke<DeleteResult>("permanent_delete", { path });
+}
+
+export function recentDeletions(): Promise<DeletionLogEntry[]> {
+  return invoke<DeletionLogEntry[]>("recent_deletions");
+}
+
+export function restoreDeleted(path: string): Promise<RestoreResult> {
+  return invoke<RestoreResult>("restore_deleted", { path });
+}
+
+export function openRecycleBin(): Promise<void> {
+  return invoke("open_recycle_bin");
 }
 
 export function revealInExplorer(path: string): Promise<void> {

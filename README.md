@@ -4,7 +4,7 @@ A Windows disk map. The scan stays in Rust. The window shows a size-sorted folde
 
 **Platform:** Windows only (x64). Linux and macOS are not supported.
 
-**MSRV:** Rust 1.90 (edition 2024).
+**MSRV:** Rust 1.85 (edition 2024).
 
 **License:** [MIT](LICENSE) © 2026 Dip Chowdhury.
 
@@ -63,11 +63,34 @@ A Windows disk map. The scan stays in Rust. The window shows a size-sorted folde
 
 ## Install
 
+### Direct download
+
 Download the MSI or NSIS installer from [GitHub Releases](https://github.com/dipbd1/rust-disk-management/releases). Prefer a published release over a draft when both exist.
+
+- NSIS: `Liquid.Storage.Manager_<ver>_x64-setup.exe`
+- MSI: `Liquid.Storage.Manager_<ver>_x64_en-US.msi`
 
 Installed builds can check for updates from the latest published release (About → Check for updates, or the startup prompt). Signing setup and release steps are in [RELEASING.md](RELEASING.md).
 
 There is no crates.io package and no CLI; this is a desktop app.
+
+### WinGet
+
+Once the package is accepted into the [Windows Package Manager Community Repository](https://github.com/microsoft/winget-pkgs):
+
+```powershell
+winget install dipbd1.LiquidStorageManager
+```
+
+Manifests live in [`packaging/winget/`](packaging/winget/). The first submission is manual; later published releases can open a `winget-pkgs` PR via Actions when the `WINGET_TOKEN` secret is set. See [`packaging/README.md`](packaging/README.md).
+
+### Scoop
+
+```powershell
+scoop install https://raw.githubusercontent.com/dipbd1/rust-disk-management/main/packaging/scoop/liquid-storage-manager.json
+```
+
+Or copy [`packaging/scoop/liquid-storage-manager.json`](packaging/scoop/liquid-storage-manager.json) into a custom Scoop bucket’s `bucket/` folder, then `scoop install liquid-storage-manager`. The manifest uses GitHub `checkver` and `autoupdate`.
 
 ### Admin / UAC
 
@@ -85,7 +108,7 @@ Cancel keeps the partial index. Rescan starts again from the active drive or fol
 
 ## What the panes do
 
-The left pane tabs are Explorer, Largest, Search, Types, Reclaim, Duplicates, and Growth.
+The left pane tabs are Explorer, Largest, Search, Types, Reclaim, Duplicates, Growth, and Deleted.
 
 - **Largest** pages files by size. Choosing one selects it and focuses its parent in the graph.
 - **Search** matches names anywhere in the scan. Those results are not the tree.
@@ -94,9 +117,18 @@ The left pane tabs are Explorer, Largest, Search, Types, Reclaim, Duplicates, an
 
 The right pane is the liquid graph of the focused folder: at most 60 children, plus one aggregate for the rest. **Area map** draws those same nodes as a squarified map. Liquid stays the default. A click selects. A double click opens a folder.
 
+## Safety
+
+Deletes are meant to feel reversible for early use:
+
+- **Recycle Bin by default.** Delete, Trash, and cleanup actions move items to the Recycle Bin. Permanent delete is opt-in (Shift+Delete or the context-menu item) and needs an extra acknowledgment.
+- **Preview before delete.** Confirms list the items, the count, the total size, and whether they go to the Recycle Bin or are removed for good.
+- **Protected paths.** Drive roots, `\Windows\`, `\Program Files\`, and `\Program Files (x86)\` are refused by the backend even if a confirm is skipped.
+- **Recent deletions.** The Deleted tab logs what this app removed and offers Restore when the Recycle Bin still has the item, or Open Recycle Bin otherwise.
+
 ## Cleanup rules
 
-Delete asks, then moves the selection to the Recycle Bin and reports the freed bytes. Shift+Delete asks before permanent delete. Drive roots, `\Windows\`, `\Program Files\`, and `\Program Files (x86)\` cannot be deleted from the explorer (the backend refuses them even if a confirm is skipped). Clicking the drive that is already the scan root returns to that root and does not start another walk.
+Delete asks with that preview, then moves the selection to the Recycle Bin and reports the freed bytes. Shift+Delete asks before permanent delete. Clicking the drive that is already the scan root returns to that root and does not start another walk.
 
 **Reclaim** lists only catalog matches, each with a sentence:
 

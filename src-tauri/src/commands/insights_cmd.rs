@@ -130,11 +130,18 @@ pub fn cancel_duplicate_review(app_state: State<'_, Arc<AppState>>) -> Result<()
 
 #[tauri::command]
 pub fn recycle_duplicate_copies(
+    app: AppHandle,
     app_state: State<'_, Arc<AppState>>,
     paths: Vec<String>,
 ) -> Result<RecycleBatch, AppError> {
     let paths = app_state.duplicate_copy_paths(&paths)?;
-    deletion::trash_many(&app_state, &paths, GuardMode::Duplicates)
+    let log_dir = app.path().app_data_dir().ok();
+    deletion::trash_many(
+        &app_state,
+        &paths,
+        GuardMode::Duplicates,
+        log_dir.as_deref(),
+    )
 }
 
 async fn run_duplicates(

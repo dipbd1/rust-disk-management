@@ -1,6 +1,6 @@
-import { formatBytes } from "./format";
 import { ancestorChain, toWindowsPath } from "./paths";
-import type { ReclaimReport, ReclaimRow, ReclaimTier } from "../types/filesystem";
+import { previewTotals } from "./deletePreview";
+import type { DeletePreviewItem, ReclaimReport, ReclaimRow, ReclaimTier } from "../types/filesystem";
 
 export const COMES_BACK_TOAST =
   "In the Recycle Bin. This space comes back the next time those tools need the files.";
@@ -37,14 +37,6 @@ export function initialChecked(rows: ReclaimRow[]): Set<string> {
   return new Set(rows.filter((row) => row.tier === "safe" && row.canRecycle).map((row) => row.id));
 }
 
-export function listedNames(titles: string[]): string {
-  const shown = titles.slice(0, 8);
-  const extra = titles.length - shown.length;
-  const lines = shown.join("\n");
-  if (extra <= 0) return lines;
-  return `${lines}\nand ${extra} more.`;
-}
-
 export function parentFolder(path: string): string {
   const chain = ancestorChain(toWindowsPath(path));
   if (chain.length < 2) return toWindowsPath(path);
@@ -64,25 +56,45 @@ export function isOldDownload(row: ReclaimRow): boolean {
   return row.tier === "review" && row.sentence.toLowerCase().includes("over 30 days");
 }
 
-export function groupPrompt(kind: "safe" | "rebuild", rows: ReclaimRow[]): { title: string; body: string; outcome: string } {
+export function rowPreviewItems(rows: ReclaimRow[]): DeletePreviewItem[] {
+  return rows.map((row) => ({
+    path: row.revealPath,
+    name: row.title,
+    sizeBytes: row.sizeBytes,
+  }));
+}
+
+export function groupPrompt(
+  kind: "safe" | "rebuild",
+  rows: ReclaimRow[],
+): {
+  title: string;
+  items: DeletePreviewItem[];
+  totalCount: number;
+  totalBytes: number;
+  note: string;
+  outcome: string;
+} {
+  const items = rowPreviewItems(rows);
   const bytes = rows.reduce((sum, row) => sum + row.sizeBytes, 0);
   const count = rows.reduce((sum, row) => sum + row.itemCount, 0);
-  const labels =
-    kind === "rebuild"
-      ? rows.map((row) => `${row.title} — ${parentFolder(row.revealPath)}`)
-      : rows.map((row) => row.title);
-  const names = listedNames(labels);
-  const countLine = `Move ${count.toLocaleString()} items (${formatBytes(bytes)}) to the Recycle Bin.`;
+  const totals = previewTotals(items);
   if (kind === "safe") {
     return {
       title: "Move scratch files to the Recycle Bin?",
-      body: `${names}\n\n${countLine} Windows and browsers recreate these. You can restore them from the bin.`,
+      items,
+      totalCount: count || totals.totalCount,
+      totalBytes: bytes || totals.totalBytes,
+      note: "Windows and browsers recreate these. You can restore them from the bin.",
       outcome: COMES_BACK_TOAST,
     };
   }
   return {
     title: "Move build caches to the Recycle Bin?",
-    body: `${names}\n\n${countLine} The next install or build downloads them again. You can restore them from the bin.`,
+    items,
+    totalCount: count || totals.totalCount,
+    totalBytes: bytes || totals.totalBytes,
+    note: "The next install or build downloads them again. You can restore them from the bin.",
     outcome: COMES_BACK_TOAST,
   };
 }

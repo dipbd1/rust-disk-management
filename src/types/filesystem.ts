@@ -62,6 +62,27 @@ export interface DeleteResult {
   ancestors: FileNode[];
 }
 
+export type DeletionMethod = "recycleBin" | "permanent";
+
+export interface DeletionLogEntry {
+  unixMs: number;
+  path: string;
+  sizeBytes: number;
+  method: DeletionMethod;
+}
+
+export interface RestoreResult {
+  restored: boolean;
+  path: string;
+  message: string;
+}
+
+export interface DeletePreviewItem {
+  path: string;
+  name: string;
+  sizeBytes: number;
+}
+
 export interface ElevationStatus {
   elevated: boolean;
   ntfsPresent: boolean;

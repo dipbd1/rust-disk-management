@@ -26,7 +26,7 @@ export default function App() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Delete" || isTypingTarget(event.target)) return;
       const state = useFileStore.getState();
-      if (!state.selectedNodeId || state.confirmPath || state.recyclePrompt) return;
+      if (!state.selectedNodeId || state.permanentPrompt || state.recyclePrompt) return;
       event.preventDefault();
       if (event.shiftKey) state.requestPermanentDelete(state.selectedNodeId);
       else state.requestTrash(state.selectedNodeId);

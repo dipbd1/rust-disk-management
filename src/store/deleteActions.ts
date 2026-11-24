@@ -1,5 +1,6 @@
 import type { GraphView } from "../types/filesystem";
 import { errorMessage, formatBytes } from "../lib/format";
+import { pathTail, singlePreview } from "../lib/deletePreview";
 import { isDriveRoot } from "../lib/paths";
 import { copyPath, permanentDelete, revealInExplorer, trashPath, watchPath } from "../services/tauriBridge";
 import { applyDelete, nodeByPath } from "./cache";
@@ -18,12 +19,6 @@ function canDestroy(state: FileStore, path: string): boolean {
   return node.kind !== "aggregate" && !isDriveRoot(node.path);
 }
 
-function pathTail(path: string): string {
-  const slash = path.replace(/[\\/]+$/, "");
-  const cut = Math.max(slash.lastIndexOf("\\"), slash.lastIndexOf("/"));
-  return (cut >= 0 ? slash.slice(cut + 1) : slash) || path;
-}
-
 function inGraph(view: GraphView | null, path: string): boolean {
   if (!view) return false;
   if (view.focus.path === path || view.focus.id === path) return true;
@@ -39,12 +34,16 @@ async function commit(set: SetFile, get: GetFile, path: string, mode: "trash" | 
     const result = mode === "trash" ? await trashPath(path) : await permanentDelete(path);
     set((state) => ({
       ...applyDelete(state, result),
-      toast: mode === "trash" ? `Moved to the Recycle Bin · ${formatBytes(result.freedBytes)} freed` : state.toast,
+      toast:
+        mode === "trash"
+          ? `Moved to the Recycle Bin · ${formatBytes(result.freedBytes)} freed`
+          : `Permanently deleted · ${formatBytes(result.freedBytes)} freed`,
       largestPage: null,
       searchPage: null,
       extensions: null,
       extensionPage: null,
       reclaim: null,
+      deletionLog: null,
     }));
     const focus = get().focusedNodeId;
     if (focus) {
@@ -74,12 +73,17 @@ export function requestTrash(set: SetFile, get: GetFile, path: string): void {
   if (!canDestroy(get(), path)) return;
   const node = nodeByPath(get().nodes, path);
   const name = node?.name || pathTail(path);
+  const sizeBytes = node?.sizeBytes ?? 0;
+  const items = singlePreview(path, name, sizeBytes);
   set({
     recyclePrompt: {
       kind: "path",
       path,
       title: "Move to the Recycle Bin?",
-      body: `${name}\n${path}\n\nYou can restore it from the Recycle Bin.`,
+      items,
+      totalCount: 1,
+      totalBytes: sizeBytes,
+      note: "You can restore it from the Recycle Bin or the Deleted tab.",
     },
   });
 }
@@ -100,17 +104,30 @@ export function finishDrain(set: SetFile, get: GetFile, path: string): void {
 
 export function requestPermanentDelete(set: SetFile, get: GetFile, path: string): void {
   if (!canDestroy(get(), path)) return;
-  set({ confirmPath: path });
+  const node = nodeByPath(get().nodes, path);
+  const name = node?.name || pathTail(path);
+  const sizeBytes = node?.sizeBytes ?? 0;
+  const items = singlePreview(path, name, sizeBytes);
+  set({
+    permanentPrompt: {
+      path,
+      title: "Permanently delete?",
+      items,
+      totalCount: 1,
+      totalBytes: sizeBytes,
+      note: "This skips the Recycle Bin. Prefer Delete (or Move to Recycle Bin) unless you are sure.",
+    },
+  });
 }
 
 export async function confirmPermanentDelete(set: SetFile, get: GetFile): Promise<void> {
-  const path = get().confirmPath;
-  if (!path || !canDestroy(get(), path)) {
-    set({ confirmPath: null });
+  const prompt = get().permanentPrompt;
+  if (!prompt || !canDestroy(get(), prompt.path)) {
+    set({ permanentPrompt: null });
     return;
   }
-  set({ confirmPath: null });
-  await commit(set, get, path, "permanent");
+  set({ permanentPrompt: null });
+  await commit(set, get, prompt.path, "permanent");
 }
 
 export async function reveal(path: string, set: SetFile): Promise<void> {
