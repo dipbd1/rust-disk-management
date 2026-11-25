@@ -47,7 +47,8 @@ sysinfo = { version = "0.40.1", default-features = false, features = ["disk"] }
 tauri-remote-ui = "1.1.2"
 tauri-plugin-dialog = "2"
 sha2 = "0.10"
-tauri-plugin-process = "2"
+# Pin minor for MSRV 1.85 — newer plugin minors may require a newer rustc.
+tauri-plugin-process = "~2.3"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
@@ -58,4 +59,5 @@ panic = "abort"
 strip = true
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
-tauri-plugin-updater = "2"
+# Pin minor for MSRV 1.85 — keep in sync with @tauri-apps/plugin-updater ~2.12.
+tauri-plugin-updater = "~2.12"

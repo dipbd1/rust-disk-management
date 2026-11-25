@@ -11,17 +11,18 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "bump-version": "node scripts/bump-version.mjs",
-    "check-version": "node scripts/bump-version.mjs --check --from-branch"
+    "check-version": "node scripts/bump-version.mjs --check --from-branch",
+    "check-tauri-versions": "node scripts/check-tauri-plugin-versions.mjs"
   },
   "dependencies": {
     "@radix-ui/react-context-menu": "^2.4.1",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "@tanstack/react-virtual": "^3.14.26",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-process": "^2",
-    "@tauri-apps/plugin-updater": "^2",
+    "@tauri-apps/api": "~2.12.0",
+    "@tauri-apps/plugin-opener": "~2.7.2",
+    "@tauri-apps/plugin-process": "~2.3.1",
+    "@tauri-apps/plugin-updater": "~2.12.0",
     "d3-force-3d": "^3.0.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -31,7 +32,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
-    "@tauri-apps/cli": "^2",
+    "@tauri-apps/cli": "~2.12.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
