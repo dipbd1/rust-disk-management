@@ -31,7 +31,8 @@ function majorMinor(version) {
 
 function cargoPackageVersions(lockText) {
   const versions = new Map();
-  const re = /^name = "([^"]+)"\nversion = "([^"]+)"/gm;
+  // Accept LF or CRLF (Windows runners may check out Cargo.lock with CRLF).
+  const re = /^name = "([^"]+)"\r?\nversion = "([^"]+)"/gm;
   let match;
   while ((match = re.exec(lockText)) !== null) {
     const [, name, version] = match;
