@@ -31,6 +31,10 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # Same major.minor gate as `tauri build` (NPM @tauri-apps/* vs Cargo.lock crates).
+      - name: Check Tauri plugin versions
+        run: npm run check-tauri-versions
+
       - name: cargo fmt
         run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 
