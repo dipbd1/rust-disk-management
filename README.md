@@ -157,4 +157,4 @@ npx tsc --noEmit
 
 The identifier stays `com.anarchy.disk-space-management`, so existing app data paths stay put. Optional Authenticode and updater signing use repository secrets on the Release workflow; unsigned installers still build when those secrets are absent (updater artifacts are skipped). A store listing is outside this repo.
 
-See [CHANGELOG.md](CHANGELOG.md) for the v0.1.0 notes and [RELEASING.md](RELEASING.md) to cut a signed update release.
+See [CHANGELOG.md](CHANGELOG.md) for release notes and [RELEASING.md](RELEASING.md) for the full checklist (`release/X.Y.Z` branch, version bump script, tag, signed updater draft, WinGet/Scoop).
