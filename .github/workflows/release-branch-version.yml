@@ -1,0 +1,58 @@
+# On release/X.Y.Z branches, require app version files to match X.Y.Z.
+# See scripts/bump-version.mjs and RELEASING.md.
+name: Release branch version
+
+on:
+  push:
+    branches: ["release/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    name: match-release-branch
+    runs-on: ubuntu-latest
+    # PRs into main only when the head branch is release/**
+    if: >
+      github.event_name == 'push' ||
+      startsWith(github.head_ref, 'release/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Resolve expected version from branch
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BRANCH="${{ github.head_ref }}"
+          else
+            BRANCH="${{ github.ref_name }}"
+          fi
+          case "$BRANCH" in
+            release/*)
+              VER="${BRANCH#release/}"
+              ;;
+            *)
+              echo "::error::Branch '$BRANCH' is not release/<version>"
+              exit 1
+              ;;
+          esac
+          if ! [[ "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid version '$VER' in branch name '$BRANCH' (want X.Y.Z)"
+            exit 1
+          fi
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Release branch $BRANCH → expected version $VER"
+
+      - name: Check version files match branch
+        run: node scripts/bump-version.mjs --check "${{ steps.ver.outputs.version }}"
